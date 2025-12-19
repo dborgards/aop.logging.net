@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sample project demonstrating all features
 - Comprehensive unit tests with xUnit, FluentAssertions, and NSubstitute
 - Documentation (README, CONTRIBUTING, VERSIONING)
-- Automated semantic versioning with GitVersion
+- Automated semantic versioning with semantic-release
 - CI/CD workflows with GitHub Actions
 
 ### Fixed

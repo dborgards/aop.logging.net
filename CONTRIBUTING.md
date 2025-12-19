@@ -360,7 +360,7 @@ How was this tested?
 
 ## Release Process
 
-Releases are **fully automated** using GitVersion and Semantic Release based on [Conventional Commits](https://www.conventionalcommits.org/).
+Releases are **fully automated** using semantic-release and Semantic Release based on [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Versioning Rules
 

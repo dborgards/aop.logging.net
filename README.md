@@ -448,7 +448,7 @@ This project follows [Semantic Versioning](https://semver.org/) and uses [Conven
 
 - **Automatic Versioning**: Versions are calculated automatically based on commit messages
 - **Conventional Commits**: All commits must follow the conventional commits specification
-- **GitVersion**: Automated version calculation and release management
+- **semantic-release**: Automated version calculation and release management
 
 See [VERSIONING.md](docs/VERSIONING.md) for detailed information about our versioning strategy.
 
