@@ -1,0 +1,56 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{8B5E1A1F-9F3E-4C1A-8F1E-1A2B3C4D5E6F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{9C6F2B2G-0G4F-5D2B-9G2F-2B3C4D5E6F7G}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0D7G3C3H-1H5G-6E3C-0H3G-3C4D5E6F7G8H}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AOP.Logging.Core", "src\AOP.Logging.Core\AOP.Logging.Core.csproj", "{1E8H4D4I-2I6H-7F4D-1I4H-4D5E6F7G8H9I}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AOP.Logging.SourceGenerator", "src\AOP.Logging.SourceGenerator\AOP.Logging.SourceGenerator.csproj", "{2F9I5E5J-3J7I-8G5E-2J5I-5E6F7G8H9I0J}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AOP.Logging.DependencyInjection", "src\AOP.Logging.DependencyInjection\AOP.Logging.DependencyInjection.csproj", "{3G0J6F6K-4K8J-9H6F-3K6J-6F7G8H9I0J1K}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AOP.Logging.Sample", "samples\AOP.Logging.Sample\AOP.Logging.Sample.csproj", "{4H1K7G7L-5L9K-0I7G-4L7K-7G8H9I0J1K2L}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AOP.Logging.Tests", "tests\AOP.Logging.Tests\AOP.Logging.Tests.csproj", "{5I2L8H8M-6M0L-1J8H-5M8L-8H9I0J1K2L3M}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E8H4D4I-2I6H-7F4D-1I4H-4D5E6F7G8H9I}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E8H4D4I-2I6H-7F4D-1I4H-4D5E6F7G8H9I}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E8H4D4I-2I6H-7F4D-1I4H-4D5E6F7G8H9I}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E8H4D4I-2I6H-7F4D-1I4H-4D5E6F7G8H9I}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F9I5E5J-3J7I-8G5E-2J5I-5E6F7G8H9I0J}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F9I5E5J-3J7I-8G5E-2J5I-5E6F7G8H9I0J}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F9I5E5J-3J7I-8G5E-2J5I-5E6F7G8H9I0J}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F9I5E5J-3J7I-8G5E-2J5I-5E6F7G8H9I0J}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3G0J6F6K-4K8J-9H6F-3K6J-6F7G8H9I0J1K}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3G0J6F6K-4K8J-9H6F-3K6J-6F7G8H9I0J1K}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3G0J6F6K-4K8J-9H6F-3K6J-6F7G8H9I0J1K}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3G0J6F6K-4K8J-9H6F-3K6J-6F7G8H9I0J1K}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4H1K7G7L-5L9K-0I7G-4L7K-7G8H9I0J1K2L}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4H1K7G7L-5L9K-0I7G-4L7K-7G8H9I0J1K2L}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4H1K7G7L-5L9K-0I7G-4L7K-7G8H9I0J1K2L}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4H1K7G7L-5L9K-0I7G-4L7K-7G8H9I0J1K2L}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5I2L8H8M-6M0L-1J8H-5M8L-8H9I0J1K2L3M}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5I2L8H8M-6M0L-1J8H-5M8L-8H9I0J1K2L3M}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5I2L8H8M-6M0L-1J8H-5M8L-8H9I0J1K2L3M}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5I2L8H8M-6M0L-1J8H-5M8L-8H9I0J1K2L3M}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1E8H4D4I-2I6H-7F4D-1I4H-4D5E6F7G8H9I} = {8B5E1A1F-9F3E-4C1A-8F1E-1A2B3C4D5E6F}
+		{2F9I5E5J-3J7I-8G5E-2J5I-5E6F7G8H9I0J} = {8B5E1A1F-9F3E-4C1A-8F1E-1A2B3C4D5E6F}
+		{3G0J6F6K-4K8J-9H6F-3K6J-6F7G8H9I0J1K} = {8B5E1A1F-9F3E-4C1A-8F1E-1A2B3C4D5E6F}
+		{4H1K7G7L-5L9K-0I7G-4L7K-7G8H9I0J1K2L} = {9C6F2B2G-0G4F-5D2B-9G2F-2B3C4D5E6F7G}
+		{5I2L8H8M-6M0L-1J8H-5M8L-8H9I0J1K2L3M} = {0D7G3C3H-1H5G-6E3C-0H3G-3C4D5E6F7G8H}
+	EndGlobalSection
+EndGlobal
