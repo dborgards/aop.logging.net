@@ -1,0 +1,145 @@
+name: Semantic Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  semantic-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      issues: write
+      pull-requests: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.10.2
+      with:
+        versionSpec: '5.x'
+
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.10.2
+      with:
+        useConfigFile: true
+        configFilePath: GitVersion.yml
+
+    - name: Display GitVersion outputs
+      run: |
+        echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
+        echo "NuGetVersionV2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        echo "InformationalVersion: ${{ steps.gitversion.outputs.informationalVersion }}"
+
+    - name: Update project versions
+      run: |
+        VERSION="${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        find . -name "*.csproj" -type f -exec sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|g" {} \;
+        find . -name "*.csproj" -type f -exec sed -i "s|<VersionPrefix>.*</VersionPrefix>|<VersionPrefix>$VERSION</VersionPrefix>|g" {} \;
+        echo "Updated version to $VERSION"
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+
+    - name: Test
+      run: dotnet test --configuration Release --no-build --verbosity normal
+
+    - name: Pack NuGet packages
+      run: dotnet pack --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+
+    - name: Create Release Notes
+      id: release_notes
+      run: |
+        VERSION="${{ steps.gitversion.outputs.semVer }}"
+        PREVIOUS_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+
+        if [ -z "$PREVIOUS_TAG" ]; then
+          PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+        fi
+
+        echo "## What's Changed" > release_notes.md
+        echo "" >> release_notes.md
+
+        # Breaking changes
+        BREAKING=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"%s" --grep="^breaking\|^major\|BREAKING CHANGE" || true)
+        if [ ! -z "$BREAKING" ]; then
+          echo "### ⚠️ Breaking Changes" >> release_notes.md
+          echo "$BREAKING" | sed 's/^/- /' >> release_notes.md
+          echo "" >> release_notes.md
+        fi
+
+        # Features
+        FEATURES=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"%s" --grep="^feat\|^feature" || true)
+        if [ ! -z "$FEATURES" ]; then
+          echo "### ✨ Features" >> release_notes.md
+          echo "$FEATURES" | sed 's/^/- /' >> release_notes.md
+          echo "" >> release_notes.md
+        fi
+
+        # Fixes
+        FIXES=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"%s" --grep="^fix" || true)
+        if [ ! -z "$FIXES" ]; then
+          echo "### 🐛 Bug Fixes" >> release_notes.md
+          echo "$FIXES" | sed 's/^/- /' >> release_notes.md
+          echo "" >> release_notes.md
+        fi
+
+        # Other changes
+        OTHERS=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"%s" --grep="^docs\|^chore\|^refactor\|^perf\|^test" || true)
+        if [ ! -z "$OTHERS" ]; then
+          echo "### 🔧 Other Changes" >> release_notes.md
+          echo "$OTHERS" | sed 's/^/- /' >> release_notes.md
+          echo "" >> release_notes.md
+        fi
+
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...v$VERSION" >> release_notes.md
+
+    - name: Create GitHub Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.gitversion.outputs.semVer }}
+        name: Release v${{ steps.gitversion.outputs.semVer }}
+        body_path: release_notes.md
+        files: ./packages/*.nupkg
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push to NuGet
+      if: github.ref == 'refs/heads/main'
+      run: |
+        dotnet nuget push "./packages/*.nupkg" \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+
+    - name: Create Pre-Release
+      if: github.ref == 'refs/heads/develop'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.gitversion.outputs.semVer }}
+        name: Pre-Release v${{ steps.gitversion.outputs.semVer }}
+        body_path: release_notes.md
+        files: ./packages/*.nupkg
+        draft: false
+        prerelease: true
+        token: ${{ secrets.GITHUB_TOKEN }}

@@ -440,9 +440,36 @@ cd samples/AOP.Logging.Sample
 dotnet run
 ```
 
+## Versioning
+
+This project follows [Semantic Versioning](https://semver.org/) and uses [Conventional Commits](https://www.conventionalcommits.org/) for automated version management.
+
+### Release Process
+
+- **Automatic Versioning**: Versions are calculated automatically based on commit messages
+- **Conventional Commits**: All commits must follow the conventional commits specification
+- **GitVersion**: Automated version calculation and release management
+
+See [VERSIONING.md](docs/VERSIONING.md) for detailed information about our versioning strategy.
+
+### Commit Message Format
+
+```bash
+# Features (bumps MINOR version)
+feat: add custom interceptor support
+
+# Bug fixes (bumps PATCH version)
+fix: resolve null reference in logger
+
+# Breaking changes (bumps MAJOR version)
+breaking: redesign attribute API
+```
+
 ## Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+**Important**: All commits must follow [Conventional Commits](https://www.conventionalcommits.org/) format for proper version management.
 
 ## License
 

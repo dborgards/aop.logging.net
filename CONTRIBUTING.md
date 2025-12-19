@@ -360,19 +360,76 @@ How was this tested?
 
 ## Release Process
 
-Releases follow [Semantic Versioning](https://semver.org/):
+Releases are **fully automated** using GitVersion and Semantic Release based on [Conventional Commits](https://www.conventionalcommits.org/).
 
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes
+### Versioning Rules
 
-### Creating a Release
+Versions follow [Semantic Versioning](https://semver.org/):
 
-1. Update version in `.csproj` files
-2. Update CHANGELOG.md
-3. Create a tag: `git tag v1.2.3`
-4. Push tag: `git push origin v1.2.3`
-5. CI/CD will build and publish to NuGet
+- **MAJOR** (x.0.0): Breaking changes - commits with `breaking:` or `major:` prefix
+- **MINOR** (1.x.0): New features - commits with `feat:` or `feature:` prefix
+- **PATCH** (1.2.x): Bug fixes - commits with `fix:` prefix
+- **NO BUMP**: Documentation, chores, refactoring - commits with `docs:`, `chore:`, `refactor:`, etc.
+
+### Automated Release Workflow
+
+**Releases to Production (main branch):**
+
+1. Merge PR to `main` branch
+2. GitHub Actions automatically:
+   - Analyzes commit messages since last release
+   - Calculates new version based on commit types
+   - Updates version in all `.csproj` files
+   - Builds and tests the project
+   - Creates NuGet packages
+   - Publishes to NuGet.org
+   - Creates GitHub Release with auto-generated notes
+   - Tags the release
+
+**Pre-releases (develop branch):**
+
+1. Merge PR to `develop` branch
+2. GitHub Actions automatically creates pre-release with `-beta` suffix
+
+### Manual Release (Emergency Only)
+
+If you absolutely need to create a manual release:
+
+```bash
+# Create and push a tag
+git tag v1.2.3
+git push origin v1.2.3
+
+# This triggers the release workflow
+```
+
+**Note**: This should only be used in emergency situations. Normal releases should go through the automated process.
+
+### Version Calculation Examples
+
+```bash
+# Last version: 1.2.3
+
+# Example 1: Feature addition
+feat: add custom interceptor support
+# New version: 1.3.0
+
+# Example 2: Bug fix
+fix: resolve memory leak
+# New version: 1.2.4
+
+# Example 3: Breaking change
+breaking: redesign attribute API
+# New version: 2.0.0
+
+# Example 4: Mixed commits
+feat: add performance monitoring
+fix: correct parameter handling
+docs: update examples
+# New version: 1.3.0 (highest applicable bump)
+```
+
+For detailed information, see [VERSIONING.md](docs/VERSIONING.md).
 
 ## Questions?
 
