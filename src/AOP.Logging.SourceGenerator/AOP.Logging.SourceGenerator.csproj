@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- NuGet Package Configuration -->
+    <PackageId>AOP.Logging.SourceGenerator</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>AOP.Logging Contributors</Authors>
+    <Company>AOP.Logging</Company>
+    <Description>Source generator for AOP.Logging framework that provides compile-time method interception and automatic logging code generation.</Description>
+    <PackageTags>aop;logging;sourcegenerator;roslyn;codegen</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/dborgards/aop.logging.net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dborgards/aop.logging.net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AOP.Logging.Core\AOP.Logging.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+</Project>
