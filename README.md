@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0-512BD4)](https://dotnet.microsoft.com/)
+[![NuGet](https://img.shields.io/nuget/v/AOP.Logging.Core.svg)](https://www.nuget.org/packages/AOP.Logging.Core/)
+[![Semantic Release](https://github.com/dborgards/aop.logging.net/actions/workflows/semantic-release.yml/badge.svg)](https://github.com/dborgards/aop.logging.net/actions/workflows/semantic-release.yml)
 
 A powerful, attribute-based Aspect-Oriented Programming (AOP) logging framework for C# that provides seamless method interception and automatic logging using Source Generators.
 
