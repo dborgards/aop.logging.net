@@ -44,13 +44,7 @@
     <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
   </PropertyGroup>
 
-  <!--
-    Empty target that participates in the GetTargetPathDependsOn chain.
-    This target is intentionally left without tasks and serves as an extension point
-    for consumers or additional build logic to hook into when calculating dependency
-    target paths, without modifying this project file.
-      <_PackageFiles Include="$(OutputPath)$(AssemblyName).dll" PackagePath="analyzers/dotnet/cs" Visible="false" />
-      <_PackageFiles Include="$(OutputPath)$(AssemblyName).pdb" PackagePath="analyzers/dotnet/cs" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" Visible="false" />
+  <Target Name="GetDependencyTargetPaths" />
 
   <!-- Package the generator as an analyzer -->
   <Target Name="PackTaskDependencies" BeforeTargets="GenerateNuspec">
