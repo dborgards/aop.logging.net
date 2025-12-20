@@ -71,7 +71,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "find . -name '*.csproj' -type f -exec sed -i 's|<Version>.*</Version>|<Version>${nextRelease.version}</Version>|g' {} \\; && find . -name '*.csproj' -type f -exec sed -i 's|<VersionPrefix>.*</VersionPrefix>|<VersionPrefix>${nextRelease.version}</VersionPrefix>|g' {} \\;",
-        "publishCmd": "dotnet pack src/AOP.Logging.Core/AOP.Logging.Core.csproj --configuration Release --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet pack src/AOP.Logging.DependencyInjection/AOP.Logging.DependencyInjection.csproj --configuration Release --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet pack src/AOP.Logging.SourceGenerator/AOP.Logging.SourceGenerator.csproj --configuration Release --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet nuget push './packages/*.nupkg' --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate"
+        "publishCmd": "dotnet pack src/AOP.Logging.Core/AOP.Logging.Core.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet pack src/AOP.Logging.DependencyInjection/AOP.Logging.DependencyInjection.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet pack src/AOP.Logging.SourceGenerator/AOP.Logging.SourceGenerator.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet nuget push './packages/*.nupkg' --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate"
       }
     ],
     [

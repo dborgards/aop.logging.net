@@ -25,6 +25,10 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>true</DevelopmentDependency>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+
+    <!-- Suppress NuGet warnings for analyzer packages -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,10 +41,17 @@
   </ItemGroup>
 
   <!-- Package the generator DLL in the analyzers folder -->
-  <Target Name="IncludeAnalyzerAssemblies" BeforeTargets="_GetPackageFiles" DependsOnTargets="Build">
+  <!-- This target ensures the DLL is included after compilation but before NuGet packaging -->
+  <Target Name="GetAnalyzerPackFiles" DependsOnTargets="$(GenerateNuspecDependsOn)" BeforeTargets="GenerateNuspec">
     <ItemGroup>
-      <None Include="$(OutputPath)$(TargetFileName)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+      <!-- Include the compiled analyzer/source generator DLL -->
+      <_AnalyzerFile Include="$(OutputPath)/$(AssemblyName).dll" />
+      <!-- Add to pack files with proper path for Roslyn analyzers -->
+      <None Include="@(_AnalyzerFile)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
+
+    <!-- Diagnostic message to verify the file is being included -->
+    <Message Text="Including analyzer assembly: @(_AnalyzerFile)" Importance="high" />
   </Target>
 
 </Project>
