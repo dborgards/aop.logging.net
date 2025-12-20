@@ -40,11 +40,17 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <!-- Package the source generator DLL in the NuGet package -->
-  <Target Name="AddAnalyzerDllToPackage" BeforeTargets="GenerateNuspecDependsOn">
+  <PropertyGroup>
+    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
+  </PropertyGroup>
+
+  <Target Name="GetDependencyTargetPaths" />
+
+  <!-- Package the generator as an analyzer -->
+  <Target Name="PackTaskDependencies" BeforeTargets="GenerateNuspec">
     <ItemGroup>
-      <None Include="bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-      <None Include="bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" Condition="Exists('bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).pdb')" />
+      <_PackageFiles Include="$(OutputPath)$(AssemblyName).dll" PackagePath="analyzers/dotnet/cs" />
+      <_PackageFiles Include="$(OutputPath)$(AssemblyName).pdb" PackagePath="analyzers/dotnet/cs" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
     </ItemGroup>
   </Target>
 
