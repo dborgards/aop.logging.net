@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Configuration -->
     <PackageId>AOP.Logging.DependencyInjection</PackageId>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <Authors>AOP.Logging Contributors</Authors>
     <Company>AOP.Logging</Company>
     <Description>Dependency injection extensions for AOP.Logging framework, providing seamless integration with Microsoft.Extensions.DependencyInjection.</Description>
