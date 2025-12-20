@@ -38,20 +38,8 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <!-- Include the source generator DLL in the analyzers path -->
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
-
-  <!-- Package the generator DLL in the analyzers folder -->
-  <!-- This target ensures the DLL is included after compilation but before NuGet packaging -->
-  <Target Name="GetAnalyzerPackFiles" DependsOnTargets="$(GenerateNuspecDependsOn)" BeforeTargets="GenerateNuspec">
-    <ItemGroup>
-      <!-- Include the compiled analyzer/source generator DLL -->
-      <_AnalyzerFile Include="$(OutputPath)/$(AssemblyName).dll" />
-      <!-- Add to pack files with proper path for Roslyn analyzers -->
-      <None Include="@(_AnalyzerFile)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    </ItemGroup>
-
-    <!-- Diagnostic message to verify the file is being included -->
-    <Message Text="Including analyzer assembly: @(_AnalyzerFile)" Importance="high" />
-  </Target>
 
 </Project>
