@@ -37,7 +37,7 @@
   </ItemGroup>
 
   <!-- Package the generator DLL in the analyzers folder -->
-  <Target Name="IncludeAnalyzerAssemblies" AfterTargets="CoreCompile" BeforeTargets="_GetPackageFiles">
+  <Target Name="IncludeAnalyzerAssemblies" BeforeTargets="_GetPackageFiles" DependsOnTargets="Build">
     <ItemGroup>
       <None Include="$(OutputPath)$(TargetFileName)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
