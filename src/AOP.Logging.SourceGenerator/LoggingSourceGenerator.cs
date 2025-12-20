@@ -18,11 +18,6 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Register the attribute source
-        context.RegisterPostInitializationOutput(ctx => ctx.AddSource(
-            "LoggingAttributes.g.cs",
-            SourceText.From(SourceGenerationHelper.AttributeSource, Encoding.UTF8)));
-
         // Find all classes with LogClass attribute
         var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
