@@ -41,10 +41,12 @@
   </ItemGroup>
 
   <!-- Package the analyzer DLL in the NuGet package -->
-  <Target Name="AddAnalyzerToPackage" BeforeTargets="GenerateNuspec">
+  <!-- AfterTargets="Build" ensures DLL exists, BeforeTargets="Pack" is stable hook for packaging -->
+  <Target Name="PackAnalyzer" AfterTargets="Build" BeforeTargets="Pack">
     <ItemGroup>
-      <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+      <None Include="$(TargetPath)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
+    <Message Text="Packing analyzer from: $(TargetPath)" Importance="high" />
   </Target>
 
 </Project>
