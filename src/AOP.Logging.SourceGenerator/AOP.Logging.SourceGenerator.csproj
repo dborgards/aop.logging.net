@@ -36,7 +36,7 @@
   </ItemGroup>
 
   <!-- Package the generator DLL in the analyzers folder -->
-  <Target Name="IncludeAnalyzerAssemblies" BeforeTargets="GenerateNuspec" DependsOnTargets="Build">
+  <Target Name="IncludeAnalyzerAssemblies" BeforeTargets="_GetPackageFiles">
     <ItemGroup>
       <_AnalyzerAssembly Include="$(OutputPath)$(TargetFileName)" />
       <None Include="@(_AnalyzerAssembly)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
