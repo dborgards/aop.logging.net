@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Configuration -->
     <PackageId>AOP.Logging.Core</PackageId>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
     <Authors>AOP.Logging Contributors</Authors>
     <Company>AOP.Logging</Company>
     <Description>Core library for AOP-based logging framework with attribute-driven method interception, providing seamless integration with Microsoft.Extensions.Logging.</Description>
