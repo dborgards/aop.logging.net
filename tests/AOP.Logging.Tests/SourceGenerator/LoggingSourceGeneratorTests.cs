@@ -287,24 +287,20 @@ namespace TestNamespace
         // Create the compilation with the source code
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
-        var references = new[]
+        // Add only the minimal required references for compilation
+        var references = new MetadataReference[]
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Core.Attributes.LogClassAttribute).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Core.Interfaces.IMethodLogger).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(System.Runtime.CompilerServices.IsExternalInit).Assembly.Location),
         };
-
-        // Add all required runtime assemblies
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
-            .Select(a => MetadataReference.CreateFromFile(a.Location))
-            .ToList();
 
         var compilation = CSharpCompilation.Create(
             assemblyName: "TestAssembly",
             syntaxTrees: new[] { syntaxTree },
-            references: references.Concat(assemblies),
+            references: references,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // Create and run the generator
