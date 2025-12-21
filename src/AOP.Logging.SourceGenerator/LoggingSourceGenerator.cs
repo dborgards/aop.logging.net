@@ -164,18 +164,23 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
         sb.AppendLine();
 
-        // Generate wrapper methods for each *Core method
-        // Look for private methods ending with "Core" suffix
+        // Generate wrapper methods for all eligible methods
+        // Filter out properties, events, constructors, operators, and compiler-generated methods
         var methods = classSymbol.GetMembers()
             .OfType<IMethodSymbol>()
             .Where(m => m.MethodKind == MethodKind.Ordinary &&
                        !m.IsStatic &&
-                       m.Name.EndsWith("Core") &&
-                       m.Name.Length > 4); // Ensure it's not just "Core"
+                       !m.IsImplicitlyDeclared); // Exclude compiler-generated methods
 
-        foreach (var coreMethod in methods)
+        // Collect all existing method names to detect collisions
+        var existingMethodNames = new HashSet<string>(
+            classSymbol.GetMembers()
+                .OfType<IMethodSymbol>()
+                .Select(m => m.Name));
+
+        foreach (var method in methods)
         {
-            var methodAttribute = coreMethod.GetAttributes()
+            var methodAttribute = method.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == LogMethodAttribute);
 
             // Skip if method has [LogMethod(Skip = true)]
@@ -187,6 +192,20 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             var shouldLog = hasLogClassAttribute || methodAttribute != null;
             if (!shouldLog)
                 continue;
+
+            // Calculate wrapper name to check for collisions
+            var originalMethodName = method.Name;
+            var wrapperMethodName = originalMethodName.EndsWith("Core") && originalMethodName.Length > CoreSuffixLength
+                ? originalMethodName.Substring(0, originalMethodName.Length - CoreSuffixLength)
+                : originalMethodName + "Logged";
+
+            // Skip if wrapper name would collide with existing method
+            if (existingMethodNames.Contains(wrapperMethodName))
+            {
+                // Note: In a real implementation, we would report a diagnostic here
+                // For now, we simply skip generating the wrapper
+                continue;
+            }
 
             // Get method-level configuration (overrides class-level)
             var logLevel = GetLogLevel(methodAttribute, "LogLevel") ?? classLogLevel;
@@ -203,7 +222,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 ? GetBoolProperty(methodAttribute, "LogExceptions", classLogExceptions)
                 : classLogExceptions;
 
-            GenerateMethodWrapper(sb, coreMethod, className, logLevel, logParameters, logReturnValue,
+            GenerateMethodWrapper(sb, method, className, logLevel, logParameters, logReturnValue,
                 logExecutionTime, logExceptions);
         }
 
@@ -215,7 +234,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 
     private static void GenerateMethodWrapper(
         StringBuilder sb,
-        IMethodSymbol coreMethod,
+        IMethodSymbol method,
         string className,
         string logLevel,
         bool logParameters,
@@ -223,28 +242,32 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         bool logExecutionTime,
         bool logExceptions)
     {
-        // Remove "Core" suffix to get the public method name
-        var coreMethodName = coreMethod.Name;
-        var methodName = coreMethodName.Substring(0, coreMethodName.Length - CoreSuffixLength);
+        // Smart naming strategy:
+        // - If method ends with "Core": remove "Core" suffix (backward compatibility)
+        // - Otherwise: add "Logged" suffix
+        var originalMethodName = method.Name;
+        var wrapperMethodName = originalMethodName.EndsWith("Core") && originalMethodName.Length > CoreSuffixLength
+            ? originalMethodName.Substring(0, originalMethodName.Length - CoreSuffixLength)
+            : originalMethodName + "Logged";
 
-        var returnType = coreMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var isAsync = coreMethod.IsAsync || returnType.Contains("System.Threading.Tasks.Task");
-        var isVoid = coreMethod.ReturnsVoid;
+        var returnType = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var isAsync = method.IsAsync || returnType.Contains("System.Threading.Tasks.Task");
+        var isVoid = method.ReturnsVoid;
         var hasReturnValue = !isVoid && returnType != "global::System.Threading.Tasks.Task";
 
         // Build parameter list
-        var parameters = coreMethod.Parameters;
+        var parameters = method.Parameters;
         var paramList = string.Join(", ", parameters.Select(p =>
             $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
         var paramNames = string.Join(", ", parameters.Select(p => p.Name));
 
         // Generate method signature
         sb.AppendLine($"        /// <summary>");
-        sb.AppendLine($"        /// Logging wrapper for {methodName}.");
+        sb.AppendLine($"        /// Logging wrapper for {wrapperMethodName}.");
         sb.AppendLine($"        /// </summary>");
 
         var asyncModifier = isAsync ? "async " : "";
-        sb.AppendLine($"        public {asyncModifier}{returnType} {methodName}({paramList})");
+        sb.AppendLine($"        public {asyncModifier}{returnType} {wrapperMethodName}({paramList})");
         sb.AppendLine("        {");
 
         // Log entry
@@ -279,7 +302,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             }
 
             sb.AppendLine("                };");
-            sb.AppendLine($"                __methodLogger.LogEntry(\"{className}\", \"{methodName}\", __parameters, LogLevel.{logLevel});");
+            sb.AppendLine($"                __methodLogger.LogEntry(\"{className}\", \"{wrapperMethodName}\", __parameters, LogLevel.{logLevel});");
             sb.AppendLine("            }");
             sb.AppendLine();
         }
@@ -289,7 +312,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             sb.AppendLine("            if (__methodLogger != null)");
             sb.AppendLine("            {");
             sb.AppendLine("                var __parameters = new Dictionary<string, object?>();");
-            sb.AppendLine($"                __methodLogger.LogEntry(\"{className}\", \"{methodName}\", __parameters, LogLevel.{logLevel});");
+            sb.AppendLine($"                __methodLogger.LogEntry(\"{className}\", \"{wrapperMethodName}\", __parameters, LogLevel.{logLevel});");
             sb.AppendLine("            }");
             sb.AppendLine();
         }
@@ -307,17 +330,17 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             sb.AppendLine("            {");
         }
 
-        // Call the core method
+        // Call the original method
         var awaitKeyword = isAsync ? "await " : "";
-        var coreCall = $"{awaitKeyword}{coreMethodName}({paramNames})";
+        var methodCall = $"{awaitKeyword}{originalMethodName}({paramNames})";
 
         if (isVoid)
         {
-            sb.AppendLine($"                {coreCall};");
+            sb.AppendLine($"                {methodCall};");
         }
         else
         {
-            sb.AppendLine($"                var __result = {coreCall};");
+            sb.AppendLine($"                var __result = {methodCall};");
         }
 
         // Stop stopwatch and log exit
@@ -333,7 +356,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             var executionTime = logExecutionTime ? "__stopwatch.ElapsedMilliseconds" : "0";
 
             // Check if return value has SensitiveData attribute
-            var returnValueSensitiveAttr = coreMethod.GetReturnTypeAttributes()
+            var returnValueSensitiveAttr = method.GetReturnTypeAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
             var isReturnValueSensitive = returnValueSensitiveAttr != null;
 
@@ -352,7 +375,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 returnValueExpr = "__result";
             }
 
-            sb.AppendLine($"                    __methodLogger.LogExit(\"{className}\", \"{methodName}\", {returnValueExpr}, {executionTime}, LogLevel.{logLevel});");
+            sb.AppendLine($"                    __methodLogger.LogExit(\"{className}\", \"{wrapperMethodName}\", {returnValueExpr}, {executionTime}, LogLevel.{logLevel});");
             sb.AppendLine("                }");
         }
 
@@ -376,7 +399,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             sb.AppendLine("                if (__methodLogger != null)");
             sb.AppendLine("                {");
             var executionTime = logExecutionTime ? "__stopwatch.ElapsedMilliseconds" : "0";
-            sb.AppendLine($"                    __methodLogger.LogException(\"{className}\", \"{methodName}\", __ex, {executionTime}, LogLevel.Error);");
+            sb.AppendLine($"                    __methodLogger.LogException(\"{className}\", \"{wrapperMethodName}\", __ex, {executionTime}, LogLevel.Error);");
             sb.AppendLine("                }");
             sb.AppendLine("                throw;");
             sb.AppendLine("            }");

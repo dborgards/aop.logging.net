@@ -65,6 +65,10 @@ await host.RunAsync();
 
 ### 2. Add Logging to Your Classes
 
+AOP.Logging supports **two patterns** for adding logging to your methods:
+
+#### Pattern 1: Core Suffix (Traditional - Backward Compatible)
+
 ```csharp
 using AOP.Logging.Core.Attributes;
 
@@ -90,10 +94,31 @@ public partial class MyService : IMyService
 }
 ```
 
+#### Pattern 2: No Core Suffix (New - Flexible)
+
+```csharp
+using AOP.Logging.Core.Attributes;
+
+[LogClass]
+public partial class OrderService : IOrderService
+{
+    // Methods without "Core" suffix work too!
+    private async Task<string> CreateOrder(string customerId, decimal amount)
+    {
+        await Task.Delay(50);
+        return Guid.NewGuid().ToString();
+    }
+
+    // The Source Generator creates wrapper methods with "Logged" suffix:
+    // - public async Task<string> CreateOrderLogged(string customerId, decimal amount)
+}
+```
+
 **Important**:
 - Classes using AOP logging must be declared as `partial`.
-- Implement your business logic in `private` methods ending with `Core` suffix.
-- The Source Generator automatically creates public wrapper methods with logging.
+- **Core Suffix Pattern**: Methods ending with `Core` generate wrappers without the suffix (e.g., `AddCore` → `Add`)
+- **No Core Pattern**: Methods without `Core` generate wrappers with `Logged` suffix (e.g., `CreateOrder` → `CreateOrderLogged`)
+- Both patterns can be mixed in the same class for maximum flexibility!
 
 ### 3. Run and See the Logs
 
@@ -106,7 +131,9 @@ info: MyService[0]
 
 ## Usage Examples
 
-> **Note**: The examples below show the business logic implementation. In practice, you should implement your methods as `private *Core` methods (e.g., `AddCore`, `ProcessDataCore`), and the Source Generator will automatically create the corresponding public wrapper methods with logging enabled.
+> **Note**: The examples below show the business logic implementation. You can use either pattern:
+> - **Core Suffix Pattern**: Implement methods as `private *Core` methods (e.g., `AddCore`, `ProcessDataCore`), and the generator creates wrappers without the suffix.
+> - **No Core Pattern**: Implement methods without the Core suffix, and the generator creates wrappers with `Logged` suffix (e.g., `CreateOrder` → `CreateOrderLogged`).
 
 ### Basic Method Logging
 
@@ -246,6 +273,51 @@ public partial class MixedService
     public void NotLoggedMethod()
     {
         // This will NOT be logged
+    }
+}
+```
+
+### Mixed Pattern Usage (Core + No Core)
+
+```csharp
+[LogClass]
+public partial class MixedPatternService
+{
+    // Old pattern: Method with "Core" suffix
+    // Wrapper: public async Task<int> ProcessData(string data)
+    private async Task<int> ProcessDataCore(string data)
+    {
+        await Task.Delay(50);
+        return data.Length;
+    }
+
+    // New pattern: Method without "Core" suffix
+    // Wrapper: public bool ValidateInputLogged(string input)
+    private bool ValidateInput(string input)
+    {
+        return !string.IsNullOrEmpty(input);
+    }
+}
+```
+
+### Selective Logging Without [LogClass]
+
+```csharp
+public partial class SelectiveService
+{
+    // Only this method will be logged (has [LogMethod])
+    // Wrapper: public async Task<bool> ImportantOperationLogged(string data)
+    [LogMethod(LogLevel.Information)]
+    private async Task<bool> ImportantOperation(string data)
+    {
+        await Task.Delay(100);
+        return !string.IsNullOrEmpty(data);
+    }
+
+    // This won't be logged (no [LogMethod] and no [LogClass])
+    private void UnloggedHelper(string data)
+    {
+        // Not logged
     }
 }
 ```
