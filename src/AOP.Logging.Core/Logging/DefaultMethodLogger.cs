@@ -2,6 +2,7 @@ using AOP.Logging.Core.Configuration;
 using AOP.Logging.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text;
 
 namespace AOP.Logging.Core.Logging;
 
@@ -59,17 +60,31 @@ public class DefaultMethodLogger : IMethodLogger
             }
 
             _logger.Log(logLevel, 0, state, null, (s, _) =>
-                _options.EntryMessageFormat
+            {
+                var message = _options.EntryMessageFormat
                     .Replace("{ClassName}", className)
-                    .Replace("{MethodName}", methodName)
-                    .Replace("{Parameters}", FormatParameters(parameters)));
+                    .Replace("{MethodName}", methodName);
+
+                // Only format parameters if the template uses them
+                if (_options.EntryMessageFormat.Contains("{Parameters}"))
+                {
+                    message = message.Replace("{Parameters}", FormatParameters(parameters));
+                }
+
+                return message;
+            });
         }
         else
         {
             var message = _options.EntryMessageFormat
                 .Replace("{ClassName}", className)
-                .Replace("{MethodName}", methodName)
-                .Replace("{Parameters}", FormatParameters(parameters));
+                .Replace("{MethodName}", methodName);
+
+            // Only format parameters if the template uses them
+            if (_options.EntryMessageFormat.Contains("{Parameters}"))
+            {
+                message = message.Replace("{Parameters}", FormatParameters(parameters));
+            }
 
             _logger.Log(logLevel, message);
         }
@@ -105,19 +120,53 @@ public class DefaultMethodLogger : IMethodLogger
             }
 
             _logger.Log(logLevel, 0, state, null, (s, _) =>
-                _options.ExitMessageFormat
+            {
+                // Check template once to avoid multiple scans
+                var template = _options.ExitMessageFormat;
+                var hasReturnValue = template.Contains("{ReturnValue}");
+                var hasExecutionTime = template.Contains("{ExecutionTime}");
+
+                var message = template
                     .Replace("{ClassName}", className)
-                    .Replace("{MethodName}", methodName)
-                    .Replace("{ReturnValue}", FormatValue(returnValue)?.ToString() ?? "null")
-                    .Replace("{ExecutionTime}", executionTimeMs.ToString()));
+                    .Replace("{MethodName}", methodName);
+
+                // Only format return value if the template uses it
+                if (hasReturnValue)
+                {
+                    message = message.Replace("{ReturnValue}", FormatValue(returnValue)?.ToString() ?? "null");
+                }
+
+                // Only format execution time if the template uses it
+                if (hasExecutionTime)
+                {
+                    message = message.Replace("{ExecutionTime}", executionTimeMs.ToString());
+                }
+
+                return message;
+            });
         }
         else
         {
-            var message = _options.ExitMessageFormat
+            // Check template once to avoid multiple scans
+            var template = _options.ExitMessageFormat;
+            var hasReturnValue = template.Contains("{ReturnValue}");
+            var hasExecutionTime = template.Contains("{ExecutionTime}");
+
+            var message = template
                 .Replace("{ClassName}", className)
-                .Replace("{MethodName}", methodName)
-                .Replace("{ReturnValue}", FormatValue(returnValue)?.ToString() ?? "null")
-                .Replace("{ExecutionTime}", executionTimeMs.ToString());
+                .Replace("{MethodName}", methodName);
+
+            // Only format return value if the template uses it
+            if (hasReturnValue)
+            {
+                message = message.Replace("{ReturnValue}", FormatValue(returnValue)?.ToString() ?? "null");
+            }
+
+            // Only format execution time if the template uses it
+            if (hasExecutionTime)
+            {
+                message = message.Replace("{ExecutionTime}", executionTimeMs.ToString());
+            }
 
             _logger.Log(logLevel, message);
         }
@@ -184,8 +233,24 @@ public class DefaultMethodLogger : IMethodLogger
             return "no parameters";
         }
 
-        var formattedParams = parameters.Select(p => $"{p.Key}={FormatValue(p.Value)}");
-        return string.Join(", ", formattedParams);
+        // Use StringBuilder to reduce string allocations
+        var sb = new StringBuilder();
+        var first = true;
+
+        foreach (var param in parameters)
+        {
+            if (!first)
+            {
+                sb.Append(", ");
+            }
+            first = false;
+
+            sb.Append(param.Key);
+            sb.Append('=');
+            sb.Append(FormatValue(param.Value));
+        }
+
+        return sb.ToString();
     }
 
     private object? FormatValue(object? value)
@@ -210,17 +275,39 @@ public class DefaultMethodLogger : IMethodLogger
         // Handle collections - use deferred enumeration to prevent DoS from infinite/large enumerables
         if (value is System.Collections.IEnumerable enumerable and not string)
         {
-            // Use Take to limit enumeration without materializing the entire collection
-            var limitedItems = enumerable.Cast<object>().Take(_options.MaxCollectionSize + 1).ToList();
+            var sb = new StringBuilder();
+            var count = 0;
+            var truncated = false;
 
-            if (limitedItems.Count > _options.MaxCollectionSize)
+            sb.Append('[');
+
+            foreach (var item in enumerable)
             {
-                // Collection is larger than the limit, show truncated message
-                // Use Take on the already materialized list to avoid creating an additional copy
-                return $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): {string.Join(", ", limitedItems.Take(_options.MaxCollectionSize).Select(FormatValue))}]";
+                if (count >= _options.MaxCollectionSize)
+                {
+                    truncated = true;
+                    break;
+                }
+
+                if (count > 0)
+                {
+                    sb.Append(", ");
+                }
+
+                sb.Append(FormatValue(item));
+                count++;
             }
 
-            return $"[{string.Join(", ", limitedItems.Select(FormatValue))}]";
+            sb.Append(']');
+
+            if (truncated)
+            {
+                // Wrap with truncation message using StringBuilder to avoid allocation
+                sb.Insert(0, $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): ");
+                sb.Append(']');
+            }
+
+            return sb.ToString();
         }
 
         // Handle primitives and other types
