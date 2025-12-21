@@ -224,7 +224,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     {
         // Remove "Core" suffix to get the public method name
         var coreMethodName = coreMethod.Name;
-        var methodName = coreMethodName[..^4]; // Remove "Core" suffix
+        var methodName = coreMethodName.Substring(0, coreMethodName.Length - 4); // Remove "Core" suffix
 
         var returnType = coreMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var isAsync = coreMethod.IsAsync || returnType.Contains("System.Threading.Tasks.Task");
