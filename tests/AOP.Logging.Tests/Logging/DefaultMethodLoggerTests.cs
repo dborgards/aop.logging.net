@@ -262,11 +262,29 @@ public class DefaultMethodLoggerTests
             ["data"] = InfiniteEnumerable()
         };
 
+        string? loggedMessage = null;
+        _mockLogger.When(x => x.Log(
+            Arg.Any<LogLevel>(),
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>()))
+            .Do(callInfo =>
+            {
+                var formatter = callInfo.ArgAt<Func<object, Exception?, string>>(4);
+                var state = callInfo.ArgAt<object>(2);
+                loggedMessage = formatter(state, null);
+            });
+
         // Act
         _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);
 
         // Assert - Should only enumerate up to MaxCollectionSize + 1 (to check if it exceeds)
         enumerationCount.Should().BeLessOrEqualTo(_options.MaxCollectionSize + 1);
+
+        // Assert - Should show truncated collection message
+        loggedMessage.Should().NotBeNull();
+        loggedMessage.Should().Contain($"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}):");
     }
 
     [Fact]
@@ -282,13 +300,18 @@ public class DefaultMethodLoggerTests
         };
 
         string? loggedMessage = null;
-        _mockLogger.Log(
+        _mockLogger.When(x => x.Log(
             Arg.Any<LogLevel>(),
             Arg.Any<EventId>(),
             Arg.Any<object>(),
             Arg.Any<Exception>(),
-            Arg.Do<Func<object, Exception?, string>>(formatter =>
-                loggedMessage = formatter(new object(), null)));
+            Arg.Any<Func<object, Exception?, string>>()))
+            .Do(callInfo =>
+            {
+                var formatter = callInfo.ArgAt<Func<object, Exception?, string>>(4);
+                var state = callInfo.ArgAt<object>(2);
+                loggedMessage = formatter(state, null);
+            });
 
         // Act
         _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);

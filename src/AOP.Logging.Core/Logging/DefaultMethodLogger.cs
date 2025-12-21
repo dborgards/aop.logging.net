@@ -216,7 +216,9 @@ public class DefaultMethodLogger : IMethodLogger
             if (limitedItems.Count > _options.MaxCollectionSize)
             {
                 // Collection is larger than the limit, show truncated message
-                return $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): {string.Join(", ", limitedItems.Take(_options.MaxCollectionSize).Select(FormatValue))}]";
+                // Use GetRange to avoid redundant enumeration since limitedItems is already materialized
+                var truncatedItems = limitedItems.GetRange(0, _options.MaxCollectionSize);
+                return $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): {string.Join(", ", truncatedItems.Select(FormatValue))}]";
             }
 
             return $"[{string.Join(", ", limitedItems.Select(FormatValue))}]";
