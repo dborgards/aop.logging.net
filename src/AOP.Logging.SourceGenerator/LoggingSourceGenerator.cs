@@ -246,33 +246,48 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
 
         // Log entry
-        if (logParameters)
+        if (logParameters && parameters.Length > 0)
         {
             sb.AppendLine("            if (__methodLogger != null)");
             sb.AppendLine("            {");
             sb.AppendLine("                var __parameters = new Dictionary<string, object?>");
             sb.AppendLine("                {");
 
-            foreach (var param in parameters)
+            for (int i = 0; i < parameters.Length; i++)
             {
+                var param = parameters[i];
+                var isLast = i == parameters.Length - 1;
+
                 // Check for SensitiveData attribute
                 var isSensitive = param.GetAttributes()
                     .Any(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
+
+                var comma = isLast ? "" : ",";
 
                 if (isSensitive)
                 {
                     var sensitiveAttr = param.GetAttributes()
                         .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
                     var maskValue = GetStringProperty(sensitiveAttr, "MaskValue") ?? "***SENSITIVE***";
-                    sb.AppendLine($"                    {{ \"{param.Name}\", \"{maskValue}\" }},");
+                    sb.AppendLine($"                    {{ \"{param.Name}\", \"{maskValue}\" }}{comma}");
                 }
                 else
                 {
-                    sb.AppendLine($"                    {{ \"{param.Name}\", {param.Name} }},");
+                    sb.AppendLine($"                    {{ \"{param.Name}\", {param.Name} }}{comma}");
                 }
             }
 
             sb.AppendLine("                };");
+            sb.AppendLine($"                __methodLogger.LogEntry(\"{className}\", \"{methodName}\", __parameters, LogLevel.{logLevel});");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+        }
+        else if (logParameters)
+        {
+            // No parameters, but we still want to log method entry
+            sb.AppendLine("            if (__methodLogger != null)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                var __parameters = new Dictionary<string, object?>();");
             sb.AppendLine($"                __methodLogger.LogEntry(\"{className}\", \"{methodName}\", __parameters, LogLevel.{logLevel});");
             sb.AppendLine("            }");
             sb.AppendLine();
@@ -354,25 +369,45 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     {
         if (attribute == null) return null;
 
-        // Check constructor argument
+        // Check constructor argument first
         if (attribute.ConstructorArguments.Length > 0)
         {
             var arg = attribute.ConstructorArguments[0];
-            if (arg.Type?.Name == "LogLevel")
+            if (arg.Type?.Name == "LogLevel" && arg.Value != null)
             {
-                return arg.Value?.ToString();
+                // Convert the enum value (int) to the enum name (string)
+                var enumValue = (int)arg.Value;
+                return GetLogLevelName(enumValue);
             }
         }
 
         // Check named argument
         var namedArg = attribute.NamedArguments
             .FirstOrDefault(a => a.Key == propertyName);
-        if (namedArg.Value.Value != null)
+        if (namedArg.Value.Value != null && namedArg.Value.Type?.Name == "LogLevel")
         {
-            return namedArg.Value.Value.ToString();
+            var enumValue = (int)namedArg.Value.Value;
+            return GetLogLevelName(enumValue);
         }
 
         return null;
+    }
+
+    private static string GetLogLevelName(int logLevelValue)
+    {
+        // Map LogLevel enum values to their names
+        // LogLevel: Trace=0, Debug=1, Information=2, Warning=3, Error=4, Critical=5, None=6
+        return logLevelValue switch
+        {
+            0 => "Trace",
+            1 => "Debug",
+            2 => "Information",
+            3 => "Warning",
+            4 => "Error",
+            5 => "Critical",
+            6 => "None",
+            _ => "Information" // Default fallback
+        };
     }
 
     private static bool GetBoolProperty(AttributeData? attribute, string propertyName, bool defaultValue)
