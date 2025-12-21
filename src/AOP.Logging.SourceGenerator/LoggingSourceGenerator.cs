@@ -2,7 +2,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 
 namespace AOP.Logging.SourceGenerator;
@@ -38,46 +40,56 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 })
             .Where(static c => c is not null);
 
-        // Combine both sources and remove duplicates based on syntax tree location
+        // Combine both sources
         var allClasses = classesWithLogClass
             .Collect()
-            .Combine(classesWithLogMethod.Collect())
-            .SelectMany(static (tuple, _) =>
-            {
-                // Combine both sources
-                var combined = tuple.Left.Concat(tuple.Right);
-
-                // Deduplicate based on syntax tree and span (structural identity)
-                // Using DistinctBy to ensure proper deduplication
-                return combined
-                    .Where(c => c is not null)
-                    .DistinctBy(c => (c.SyntaxTree, c.Span));
-            });
+            .Combine(classesWithLogMethod.Collect());
 
         // Combine with compilation
-        var compilationAndClasses = context.CompilationProvider.Combine(allClasses.Collect());
+        var compilationAndClasses = context.CompilationProvider.Combine(allClasses);
 
         // Generate the logging code
         context.RegisterSourceOutput(compilationAndClasses,
             static (spc, source) => Execute(source.Left, source.Right, spc));
     }
 
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax?> classes, SourceProductionContext context)
+    private static void Execute(
+        Compilation compilation,
+        (ImmutableArray<ClassDeclarationSyntax> Left, ImmutableArray<ClassDeclarationSyntax?> Right) classes,
+        SourceProductionContext context)
     {
-        if (classes.IsDefaultOrEmpty)
+        // Combine both sources and deduplicate based on syntax tree and span
+        var seenClasses = new HashSet<(SyntaxTree, TextSpan)>();
+        var uniqueClasses = new List<ClassDeclarationSyntax>();
+
+        // Process classes with LogClass attribute
+        foreach (var classDecl in classes.Left)
         {
-            return;
+            var key = (classDecl.SyntaxTree, classDecl.Span);
+            if (seenClasses.Add(key))
+            {
+                uniqueClasses.Add(classDecl);
+            }
         }
 
-        // Filter out any nulls (defensive programming)
-        // Deduplication is already handled in Initialize via DistinctBy
-        foreach (var classDeclaration in classes)
+        // Process classes with LogMethod attribute
+        foreach (var classDecl in classes.Right)
         {
-            if (classDeclaration is null)
+            if (classDecl is null)
             {
                 continue;
             }
 
+            var key = (classDecl.SyntaxTree, classDecl.Span);
+            if (seenClasses.Add(key))
+            {
+                uniqueClasses.Add(classDecl);
+            }
+        }
+
+        // Generate code for each unique class
+        foreach (var classDeclaration in uniqueClasses)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
             var semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
