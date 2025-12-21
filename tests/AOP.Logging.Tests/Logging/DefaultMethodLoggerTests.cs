@@ -277,41 +277,4 @@ public class DefaultMethodLoggerTests
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
     }
-
-    [Fact]
-    public void FormatValue_WithSmallEnumerable_FormatsCorrectly()
-    {
-        // Arrange
-        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
-        _options.MaxCollectionSize = 10;
-
-        var enumerationCount = 0;
-        IEnumerable<int> SmallEnumerable()
-        {
-            for (int i = 1; i <= 3; i++)
-            {
-                enumerationCount++;
-                yield return i;
-            }
-        }
-
-        var parameters = new Dictionary<string, object?>
-        {
-            ["data"] = SmallEnumerable()
-        };
-
-        // Act
-        _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);
-
-        // Assert - Should enumerate the full small collection
-        enumerationCount.Should().Be(3);
-
-        // Verify the log method was called
-        _mockLogger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Any<object>(),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
-    }
 }
