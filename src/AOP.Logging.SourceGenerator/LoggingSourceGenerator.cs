@@ -331,7 +331,27 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             sb.AppendLine("                if (__methodLogger != null)");
             sb.AppendLine("                {");
             var executionTime = logExecutionTime ? "__stopwatch.ElapsedMilliseconds" : "0";
-            var returnValueExpr = hasReturnValue ? "__result" : "null";
+
+            // Check if return value has SensitiveData attribute
+            var returnValueSensitiveAttr = coreMethod.GetReturnTypeAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
+            var isReturnValueSensitive = returnValueSensitiveAttr != null;
+
+            string returnValueExpr;
+            if (!hasReturnValue)
+            {
+                returnValueExpr = "null";
+            }
+            else if (isReturnValueSensitive)
+            {
+                var maskValue = GetSensitiveDataMaskValue(returnValueSensitiveAttr);
+                returnValueExpr = $"\"{maskValue}\"";
+            }
+            else
+            {
+                returnValueExpr = "__result";
+            }
+
             sb.AppendLine($"                    __methodLogger.LogExit(\"{className}\", \"{methodName}\", {returnValueExpr}, {executionTime}, LogLevel.{logLevel});");
             sb.AppendLine("                }");
         }
