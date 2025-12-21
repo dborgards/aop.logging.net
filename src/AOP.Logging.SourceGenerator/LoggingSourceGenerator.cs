@@ -18,6 +18,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     private const string LogClassAttribute = "AOP.Logging.Core.Attributes.LogClassAttribute";
     private const string LogMethodAttribute = "AOP.Logging.Core.Attributes.LogMethodAttribute";
     private const string DefaultSensitiveDataMask = "***SENSITIVE***";
+    private const int CoreSuffixLength = 4; // Length of "Core" suffix
 
     /// <summary>
     /// Equality comparer for ClassDeclarationSyntax based on syntax tree and span.
@@ -224,7 +225,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     {
         // Remove "Core" suffix to get the public method name
         var coreMethodName = coreMethod.Name;
-        var methodName = coreMethodName.Substring(0, coreMethodName.Length - 4); // Remove "Core" suffix
+        var methodName = coreMethodName.Substring(0, coreMethodName.Length - CoreSuffixLength);
 
         var returnType = coreMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var isAsync = coreMethod.IsAsync || returnType.Contains("System.Threading.Tasks.Task");
@@ -259,16 +260,15 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 var param = parameters[i];
                 var isLast = i == parameters.Length - 1;
 
-                // Check for SensitiveData attribute
-                var isSensitive = param.GetAttributes()
-                    .Any(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
+                // Check for SensitiveData attribute (single enumeration)
+                var sensitiveAttr = param.GetAttributes()
+                    .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
+                var isSensitive = sensitiveAttr != null;
 
                 var comma = isLast ? "" : ",";
 
                 if (isSensitive)
                 {
-                    var sensitiveAttr = param.GetAttributes()
-                        .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
                     var maskValue = GetSensitiveDataMaskValue(sensitiveAttr);
                     sb.AppendLine($"                    {{ \"{param.Name}\", \"{maskValue}\" }}{comma}");
                 }
@@ -407,7 +407,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             4 => "Error",
             5 => "Critical",
             6 => "None",
-            _ => "Information" // Default fallback
+            _ => "Information" // Use 'Information' as a safe, neutral default for any unrecognized LogLevel value
         };
     }
 
