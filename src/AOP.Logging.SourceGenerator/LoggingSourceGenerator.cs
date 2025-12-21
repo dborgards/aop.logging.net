@@ -18,6 +18,31 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     private const string LogClassAttribute = "AOP.Logging.Core.Attributes.LogClassAttribute";
     private const string LogMethodAttribute = "AOP.Logging.Core.Attributes.LogMethodAttribute";
 
+    /// <summary>
+    /// Equality comparer for ClassDeclarationSyntax based on syntax tree and span.
+    /// Used for deduplication when a class has both LogClass and LogMethod attributes.
+    /// </summary>
+    private sealed class ClassDeclarationSyntaxComparer : IEqualityComparer<ClassDeclarationSyntax>
+    {
+        public static readonly ClassDeclarationSyntaxComparer Instance = new ClassDeclarationSyntaxComparer();
+
+        public bool Equals(ClassDeclarationSyntax? x, ClassDeclarationSyntax? y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x is null || y is null) return false;
+            return x.SyntaxTree == y.SyntaxTree && x.Span == y.Span;
+        }
+
+        public int GetHashCode(ClassDeclarationSyntax obj)
+        {
+            if (obj is null) return 0;
+            unchecked
+            {
+                return (obj.SyntaxTree.GetHashCode() * 397) ^ obj.Span.GetHashCode();
+            }
+        }
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all classes with LogClass attribute using ForAttributeWithMetadataName for better performance
@@ -40,10 +65,10 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 })
             .Where(static c => c is not null);
 
-        // Combine both sources
+        // Combine both sources efficiently: Concat before Collect to reduce allocations
         var allClasses = classesWithLogClass
-            .Collect()
-            .Combine(classesWithLogMethod.Collect());
+            .Concat(classesWithLogMethod!)
+            .Collect();
 
         // Combine with compilation
         var compilationAndClasses = context.CompilationProvider.Combine(allClasses);
@@ -55,44 +80,26 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 
     private static void Execute(
         Compilation compilation,
-        (ImmutableArray<ClassDeclarationSyntax> Left, ImmutableArray<ClassDeclarationSyntax?> Right) classes,
+        ImmutableArray<ClassDeclarationSyntax?> classes,
         SourceProductionContext context)
     {
-        // Combine both sources and deduplicate based on syntax tree and span
-        var seenClasses = new HashSet<(SyntaxTree, TextSpan)>();
-        var uniqueClasses = new List<ClassDeclarationSyntax>();
-
-        // Process classes with LogClass attribute
-        foreach (var classDecl in classes.Left)
+        if (classes.IsDefaultOrEmpty)
         {
-            var key = (classDecl.SyntaxTree, classDecl.Span);
-            if (seenClasses.Add(key))
-            {
-                uniqueClasses.Add(classDecl);
-            }
+            return;
         }
 
-        // Process classes with LogMethod attribute
-        foreach (var classDecl in classes.Right)
-        {
-            if (classDecl is null)
-            {
-                continue;
-            }
-
-            var key = (classDecl.SyntaxTree, classDecl.Span);
-            if (seenClasses.Add(key))
-            {
-                uniqueClasses.Add(classDecl);
-            }
-        }
+        // Deduplicate classes that have both LogClass and LogMethod attributes
+        // Using Distinct with custom comparer is more efficient than manual HashSet approach
+        var uniqueClasses = classes
+            .Where(c => c is not null)
+            .Distinct(ClassDeclarationSyntaxComparer.Instance);
 
         // Generate code for each unique class
         foreach (var classDeclaration in uniqueClasses)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            var semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
+            var semanticModel = compilation.GetSemanticModel(classDeclaration!.SyntaxTree);
             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
 
             if (classSymbol is null)
