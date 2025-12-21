@@ -308,10 +308,10 @@ namespace TestNamespace
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // Create and run the generator
-        var generator = new Core.SourceGenerator.LoggingSourceGenerator();
+        var generator = new AOP.Logging.SourceGenerator.LoggingSourceGenerator();
 
         var driver = CSharpGeneratorDriver.Create(generator);
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
+        driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
 
         var runResult = driver.GetRunResult();
 
