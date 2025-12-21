@@ -66,7 +66,7 @@ public class DefaultMethodLogger : IMethodLogger
                     .Replace("{MethodName}", methodName);
 
                 // Only format parameters if the template uses them
-                if (includeParametersInState)
+                if (_options.EntryMessageFormat.Contains("{Parameters}"))
                 {
                     message = message.Replace("{Parameters}", FormatParameters(parameters));
                 }
@@ -121,18 +121,23 @@ public class DefaultMethodLogger : IMethodLogger
 
             _logger.Log(logLevel, 0, state, null, (s, _) =>
             {
-                var message = _options.ExitMessageFormat
+                // Check template once to avoid multiple scans
+                var template = _options.ExitMessageFormat;
+                var hasReturnValue = template.Contains("{ReturnValue}");
+                var hasExecutionTime = template.Contains("{ExecutionTime}");
+
+                var message = template
                     .Replace("{ClassName}", className)
                     .Replace("{MethodName}", methodName);
 
                 // Only format return value if the template uses it
-                if (_options.ExitMessageFormat.Contains("{ReturnValue}"))
+                if (hasReturnValue)
                 {
                     message = message.Replace("{ReturnValue}", FormatValue(returnValue)?.ToString() ?? "null");
                 }
 
                 // Only format execution time if the template uses it
-                if (_options.ExitMessageFormat.Contains("{ExecutionTime}"))
+                if (hasExecutionTime)
                 {
                     message = message.Replace("{ExecutionTime}", executionTimeMs.ToString());
                 }
@@ -142,18 +147,23 @@ public class DefaultMethodLogger : IMethodLogger
         }
         else
         {
-            var message = _options.ExitMessageFormat
+            // Check template once to avoid multiple scans
+            var template = _options.ExitMessageFormat;
+            var hasReturnValue = template.Contains("{ReturnValue}");
+            var hasExecutionTime = template.Contains("{ExecutionTime}");
+
+            var message = template
                 .Replace("{ClassName}", className)
                 .Replace("{MethodName}", methodName);
 
             // Only format return value if the template uses it
-            if (_options.ExitMessageFormat.Contains("{ReturnValue}"))
+            if (hasReturnValue)
             {
                 message = message.Replace("{ReturnValue}", FormatValue(returnValue)?.ToString() ?? "null");
             }
 
             // Only format execution time if the template uses it
-            if (_options.ExitMessageFormat.Contains("{ExecutionTime}"))
+            if (hasExecutionTime)
             {
                 message = message.Replace("{ExecutionTime}", executionTimeMs.ToString());
             }
@@ -292,8 +302,9 @@ public class DefaultMethodLogger : IMethodLogger
 
             if (truncated)
             {
-                // Prepend truncation message
-                return $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): {sb}]";
+                // Wrap with truncation message using StringBuilder to avoid allocation
+                sb.Insert(0, $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): ");
+                sb.Append(']');
             }
 
             return sb.ToString();
