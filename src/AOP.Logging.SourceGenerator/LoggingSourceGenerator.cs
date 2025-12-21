@@ -38,14 +38,20 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 })
             .Where(static c => c is not null);
 
-        // Combine both sources and remove duplicates
+        // Combine both sources and remove duplicates based on syntax tree location
         var allClasses = classesWithLogClass
             .Collect()
             .Combine(classesWithLogMethod.Collect())
             .SelectMany(static (tuple, _) =>
             {
-                // Combine and deduplicate classes from both sources
-                return tuple.Left.Concat(tuple.Right!).Distinct();
+                // Combine both sources
+                var combined = tuple.Left.Concat(tuple.Right);
+
+                // Deduplicate based on syntax tree and span (structural identity)
+                // Using DistinctBy to ensure proper deduplication
+                return combined
+                    .Where(c => c is not null)
+                    .DistinctBy(c => (c.SyntaxTree, c.Span));
             });
 
         // Combine with compilation
@@ -53,7 +59,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 
         // Generate the logging code
         context.RegisterSourceOutput(compilationAndClasses,
-            static (spc, source) => Execute(source.Left, source.Right!, spc));
+            static (spc, source) => Execute(source.Left, source.Right, spc));
     }
 
     private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax?> classes, SourceProductionContext context)
@@ -63,13 +69,18 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             return;
         }
 
-        var distinctClasses = classes.Where(c => c is not null).Distinct();
-
-        foreach (var classDeclaration in distinctClasses)
+        // Filter out any nulls (defensive programming)
+        // Deduplication is already handled in Initialize via DistinctBy
+        foreach (var classDeclaration in classes)
         {
+            if (classDeclaration is null)
+            {
+                continue;
+            }
+
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            var semanticModel = compilation.GetSemanticModel(classDeclaration!.SyntaxTree);
+            var semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
 
             if (classSymbol is null)
