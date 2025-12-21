@@ -60,7 +60,9 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 {
                     // Get the containing class of the method
                     var method = (MethodDeclarationSyntax)ctx.TargetNode;
-                    return method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+                    return method.Ancestors()
+                        .OfType<ClassDeclarationSyntax>()
+                        .FirstOrDefault();
                 })
             .Where(static c => c is not null)
             .Select(static (c, _) => c!); // Convert to non-nullable after null filtering
@@ -86,11 +88,11 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         ImmutableArray<ClassDeclarationSyntax> classesWithLogMethod,
         SourceProductionContext context)
     {
-        // Combine both sources and deduplicate classes that have both attributes
-        // Using Distinct with custom comparer for structural equality
-        var allClasses = classesWithLogClass
-            .Concat(classesWithLogMethod)
-            .Distinct(ClassDeclarationSyntaxComparer.Instance);
+        // Combine both sources and deduplicate using HashSet for O(n) performance
+        // HashSet with custom comparer ensures structural equality
+        var allClasses = new HashSet<ClassDeclarationSyntax>(ClassDeclarationSyntaxComparer.Instance);
+        allClasses.UnionWith(classesWithLogClass);
+        allClasses.UnionWith(classesWithLogMethod);
 
         // Generate code for each unique class
         foreach (var classDeclaration in allClasses)
