@@ -37,6 +37,8 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         {
             unchecked
             {
+                // 397 is a prime number commonly used in hash code implementations for good distribution
+                // Note: HashCode.Combine would be preferable but requires .NET Standard 2.1+
                 return (obj.SyntaxTree.GetHashCode() * 397) ^ obj.Span.GetHashCode();
             }
         }
@@ -68,8 +70,9 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             .Select(static (c, _) => c!); // Convert to non-nullable after null filtering
 
         // Combine both sources
-        // Note: Using Collect() on both is required for IncrementalValuesProvider API
-        // The incremental generator efficiently caches results, so this doesn't duplicate work
+        // Note: Collect() materializes each IncrementalValuesProvider into an ImmutableArray
+        // Classes appearing in both sources (having both LogClass and LogMethod) are deduplicated
+        // later in Execute via HashSet with ClassDeclarationSyntaxComparer
         var allClasses = classesWithLogClass
             .Collect()
             .Combine(classesWithLogMethod.Collect());
