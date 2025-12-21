@@ -22,7 +22,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     /// Equality comparer for ClassDeclarationSyntax based on syntax tree and span.
     /// Used for deduplication when a class has both LogClass and LogMethod attributes.
     /// </summary>
-    private sealed class ClassDeclarationSyntaxComparer : IEqualityComparer<ClassDeclarationSyntax>
+    private sealed class ClassDeclarationSyntaxComparer : IEqualityComparer<ClassDeclarationSyntax?>
     {
         public static readonly ClassDeclarationSyntaxComparer Instance = new ClassDeclarationSyntaxComparer();
 
@@ -33,7 +33,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             return x.SyntaxTree == y.SyntaxTree && x.Span == y.Span;
         }
 
-        public int GetHashCode(ClassDeclarationSyntax obj)
+        public int GetHashCode(ClassDeclarationSyntax? obj)
         {
             if (obj is null) return 0;
             unchecked
@@ -65,41 +65,45 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 })
             .Where(static c => c is not null);
 
-        // Combine both sources efficiently: Concat before Collect to reduce allocations
+        // Combine both sources
+        // Note: Using Collect() on both is required for IncrementalValuesProvider API
+        // The incremental generator efficiently caches results, so this doesn't duplicate work
         var allClasses = classesWithLogClass
-            .Concat(classesWithLogMethod!)
-            .Collect();
+            .Collect()
+            .Combine(classesWithLogMethod.Collect());
 
         // Combine with compilation
         var compilationAndClasses = context.CompilationProvider.Combine(allClasses);
 
         // Generate the logging code
         context.RegisterSourceOutput(compilationAndClasses,
-            static (spc, source) => Execute(source.Left, source.Right, spc));
+            static (spc, source) => Execute(source.Left, source.Right.Left, source.Right.Right, spc));
     }
 
     private static void Execute(
         Compilation compilation,
-        ImmutableArray<ClassDeclarationSyntax?> classes,
+        ImmutableArray<ClassDeclarationSyntax> classesWithLogClass,
+        ImmutableArray<ClassDeclarationSyntax?> classesWithLogMethod,
         SourceProductionContext context)
     {
-        if (classes.IsDefaultOrEmpty)
-        {
-            return;
-        }
-
-        // Deduplicate classes that have both LogClass and LogMethod attributes
-        // Using Distinct with custom comparer is more efficient than manual HashSet approach
-        var uniqueClasses = classes
-            .Where(c => c is not null)
+        // Combine both sources and deduplicate classes that have both attributes
+        // Using Distinct with custom comparer for structural equality
+        var allClasses = classesWithLogClass
+            .Cast<ClassDeclarationSyntax?>()
+            .Concat(classesWithLogMethod)
             .Distinct(ClassDeclarationSyntaxComparer.Instance);
 
         // Generate code for each unique class
-        foreach (var classDeclaration in uniqueClasses)
+        foreach (var classDeclaration in allClasses)
         {
+            if (classDeclaration is null)
+            {
+                continue;
+            }
+
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            var semanticModel = compilation.GetSemanticModel(classDeclaration!.SyntaxTree);
+            var semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
 
             if (classSymbol is null)
