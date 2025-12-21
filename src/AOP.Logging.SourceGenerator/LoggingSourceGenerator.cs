@@ -2,7 +2,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 
 namespace AOP.Logging.SourceGenerator;
@@ -16,92 +18,91 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     private const string LogClassAttribute = "AOP.Logging.Core.Attributes.LogClassAttribute";
     private const string LogMethodAttribute = "AOP.Logging.Core.Attributes.LogMethodAttribute";
 
+    /// <summary>
+    /// Equality comparer for ClassDeclarationSyntax based on syntax tree and span.
+    /// Used for deduplication when a class has both LogClass and LogMethod attributes.
+    /// </summary>
+    private sealed class ClassDeclarationSyntaxComparer : IEqualityComparer<ClassDeclarationSyntax>
+    {
+        public static readonly ClassDeclarationSyntaxComparer Instance = new ClassDeclarationSyntaxComparer();
+
+        public bool Equals(ClassDeclarationSyntax? x, ClassDeclarationSyntax? y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x is null || y is null) return false;
+            return x.SyntaxTree == y.SyntaxTree && x.Span == y.Span;
+        }
+
+        public int GetHashCode(ClassDeclarationSyntax obj)
+        {
+            unchecked
+            {
+                // 397 is a prime number commonly used in hash code implementations for good distribution
+                // Note: HashCode.Combine would be preferable but requires .NET Standard 2.1+
+                return (obj.SyntaxTree.GetHashCode() * 397) ^ obj.Span.GetHashCode();
+            }
+        }
+    }
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Find all classes with LogClass attribute
-        var classDeclarations = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: static (s, _) => IsCandidateClass(s),
-                transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx))
-            .Where(static m => m is not null);
+        // Find all classes with LogClass attribute using ForAttributeWithMetadataName for better performance
+        var classesWithLogClass = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                LogClassAttribute,
+                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.TargetNode);
+
+        // Find all methods with LogMethod attribute and get their containing classes
+        var classesWithLogMethod = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                LogMethodAttribute,
+                predicate: static (node, _) => node is MethodDeclarationSyntax,
+                transform: static (ctx, _) =>
+                {
+                    // Get the containing class of the method
+                    var method = (MethodDeclarationSyntax)ctx.TargetNode;
+                    return method.Ancestors()
+                        .OfType<ClassDeclarationSyntax>()
+                        .FirstOrDefault();
+                })
+            .Where(static c => c is not null)
+            .Select(static (c, _) => c!); // Convert to non-nullable after null filtering
+
+        // Combine both sources
+        // Note: Collect() materializes each IncrementalValuesProvider into an ImmutableArray
+        // Classes appearing in both sources (having both LogClass and LogMethod) are deduplicated
+        // later in Execute via HashSet with ClassDeclarationSyntaxComparer
+        var allClasses = classesWithLogClass
+            .Collect()
+            .Combine(classesWithLogMethod.Collect());
 
         // Combine with compilation
-        var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect());
+        var compilationAndClasses = context.CompilationProvider.Combine(allClasses);
 
         // Generate the logging code
         context.RegisterSourceOutput(compilationAndClasses,
-            static (spc, source) => Execute(source.Left, source.Right!, spc));
+            static (spc, source) => Execute(source.Left, source.Right.Left, source.Right.Right, spc));
     }
 
-    private static bool IsCandidateClass(SyntaxNode node)
+    private static void Execute(
+        Compilation compilation,
+        ImmutableArray<ClassDeclarationSyntax> classesWithLogClass,
+        ImmutableArray<ClassDeclarationSyntax> classesWithLogMethod,
+        SourceProductionContext context)
     {
-        return node is ClassDeclarationSyntax classDecl && classDecl.AttributeLists.Count > 0;
-    }
+        // Combine both sources and deduplicate using HashSet for O(n) performance
+        // HashSet with custom comparer ensures structural equality
+        var allClasses = new HashSet<ClassDeclarationSyntax>(ClassDeclarationSyntaxComparer.Instance);
+        allClasses.UnionWith(classesWithLogClass);
+        allClasses.UnionWith(classesWithLogMethod);
 
-    private static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
-    {
-        var classDeclaration = (ClassDeclarationSyntax)context.Node;
-
-        foreach (var attributeList in classDeclaration.AttributeLists)
-        {
-            foreach (var attribute in attributeList.Attributes)
-            {
-                var symbolInfo = context.SemanticModel.GetSymbolInfo(attribute);
-                if (symbolInfo.Symbol is not IMethodSymbol attributeSymbol)
-                {
-                    continue;
-                }
-
-                var attributeType = attributeSymbol.ContainingType.ToDisplayString();
-                if (attributeType == LogClassAttribute)
-                {
-                    return classDeclaration;
-                }
-            }
-        }
-
-        // Check if any methods have LogMethod attribute
-        foreach (var member in classDeclaration.Members)
-        {
-            if (member is MethodDeclarationSyntax methodDecl && methodDecl.AttributeLists.Count > 0)
-            {
-                foreach (var attributeList in methodDecl.AttributeLists)
-                {
-                    foreach (var attribute in attributeList.Attributes)
-                    {
-                        var symbolInfo = context.SemanticModel.GetSymbolInfo(attribute);
-                        if (symbolInfo.Symbol is not IMethodSymbol attributeSymbol)
-                        {
-                            continue;
-                        }
-
-                        var attributeType = attributeSymbol.ContainingType.ToDisplayString();
-                        if (attributeType == LogMethodAttribute)
-                        {
-                            return classDeclaration;
-                        }
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax?> classes, SourceProductionContext context)
-    {
-        if (classes.IsDefaultOrEmpty)
-        {
-            return;
-        }
-
-        var distinctClasses = classes.Where(c => c is not null).Distinct();
-
-        foreach (var classDeclaration in distinctClasses)
+        // Generate code for each unique class
+        foreach (var classDeclaration in allClasses)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            var semanticModel = compilation.GetSemanticModel(classDeclaration!.SyntaxTree);
+            var semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
 
             if (classSymbol is null)
