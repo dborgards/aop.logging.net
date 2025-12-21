@@ -5,14 +5,15 @@ namespace AOP.Logging.Sample.Services;
 
 /// <summary>
 /// Data service demonstrating collection handling.
+/// The Source Generator creates public wrapper methods that call these private Core methods.
 /// </summary>
 [LogClass]
 public partial class DataService : IDataService
 {
     /// <summary>
-    /// Gets data items by IDs (demonstrates collection logging).
+    /// Core implementation: Gets data items by IDs (demonstrates collection logging).
     /// </summary>
-    public async Task<List<DataItem>> GetDataAsync([LogParameter(MaxLength = 10)] int[] ids)
+    private async Task<List<DataItem>> GetDataAsyncCore([LogParameter(MaxLength = 10)] int[] ids)
     {
         await Task.Delay(100); // Simulate async work
 
@@ -28,10 +29,10 @@ public partial class DataService : IDataService
     }
 
     /// <summary>
-    /// Processes a data item.
+    /// Core implementation: Processes a data item.
     /// </summary>
     [LogResult(Name = "ProcessedItem")]
-    public async Task<DataItem> ProcessDataAsync(DataItem item)
+    private async Task<DataItem> ProcessDataAsyncCore(DataItem item)
     {
         await Task.Delay(50); // Simulate async work
 

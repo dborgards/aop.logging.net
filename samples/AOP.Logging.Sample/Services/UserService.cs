@@ -6,6 +6,7 @@ namespace AOP.Logging.Sample.Services;
 
 /// <summary>
 /// User service demonstrating sensitive data handling.
+/// The Source Generator creates public wrapper methods that call these private Core methods.
 /// </summary>
 [LogClass]
 public partial class UserService : IUserService
@@ -13,9 +14,9 @@ public partial class UserService : IUserService
     private readonly Dictionary<string, User> _users = new();
 
     /// <summary>
-    /// Creates a new user with sensitive password.
+    /// Core implementation: Creates a new user with sensitive password.
     /// </summary>
-    public async Task<User> CreateUserAsync(
+    private async Task<User> CreateUserAsyncCore(
         string email,
         [SensitiveData] string password)
     {
@@ -34,9 +35,9 @@ public partial class UserService : IUserService
     }
 
     /// <summary>
-    /// Authenticates a user with sensitive password.
+    /// Core implementation: Authenticates a user with sensitive password.
     /// </summary>
-    public async Task<bool> AuthenticateAsync(
+    private async Task<bool> AuthenticateAsyncCore(
         string email,
         [SensitiveData] string password)
     {
@@ -51,10 +52,10 @@ public partial class UserService : IUserService
     }
 
     /// <summary>
-    /// Gets a user by email.
+    /// Core implementation: Gets a user by email.
     /// </summary>
     [LogMethod(LogLevel.Debug)]
-    public async Task<User?> GetUserByEmailAsync(string email)
+    private async Task<User?> GetUserByEmailAsyncCore(string email)
     {
         await Task.Delay(20); // Simulate async work
         _users.TryGetValue(email, out var user);

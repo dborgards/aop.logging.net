@@ -5,32 +5,33 @@ namespace AOP.Logging.Sample.Services;
 
 /// <summary>
 /// Calculator service with automatic method logging.
+/// The Source Generator creates public wrapper methods that call these private Core methods.
 /// </summary>
 [LogClass(LogLevel.Information)]
 public partial class CalculatorService : ICalculatorService
 {
     /// <summary>
-    /// Adds two numbers.
+    /// Core implementation: Adds two numbers.
     /// </summary>
-    public int Add(int a, int b)
+    private int AddCore(int a, int b)
     {
         return a + b;
     }
 
     /// <summary>
-    /// Multiplies two numbers.
+    /// Core implementation: Multiplies two numbers.
     /// </summary>
     [LogMethod(LogLevel.Debug)]
-    public int Multiply(int a, int b)
+    private int MultiplyCore(int a, int b)
     {
         return a * b;
     }
 
     /// <summary>
-    /// Divides two numbers. Throws exception on division by zero.
+    /// Core implementation: Divides two numbers. Throws exception on division by zero.
     /// </summary>
     [LogException]
-    public double Divide(int a, int b)
+    private double DivideCore(int a, int b)
     {
         if (b == 0)
         {
@@ -40,19 +41,19 @@ public partial class CalculatorService : ICalculatorService
     }
 
     /// <summary>
-    /// Performs an async calculation.
+    /// Core implementation: Performs an async calculation.
     /// </summary>
-    public async Task<double> CalculateAsync(int a, int b)
+    private async Task<double> CalculateAsyncCore(int a, int b)
     {
         await Task.Delay(100); // Simulate async work
         return Math.Sqrt(a * a + b * b);
     }
 
     /// <summary>
-    /// Performs a complex calculation with custom log level.
+    /// Core implementation: Performs a complex calculation with custom log level.
     /// </summary>
     [LogMethod(LogLevel.Warning)]
-    public void PerformComplexCalculation(int iterations)
+    private void PerformComplexCalculationCore(int iterations)
     {
         var result = 0.0;
         for (int i = 0; i < iterations; i++)

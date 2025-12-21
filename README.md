@@ -71,21 +71,29 @@ using AOP.Logging.Core.Attributes;
 [LogClass]
 public partial class MyService : IMyService
 {
-    public int Add(int a, int b)
+    // Implement your business logic in private *Core methods
+    private int AddCore(int a, int b)
     {
         return a + b;
     }
 
     [LogMethod(LogLevel.Debug)]
-    public async Task<string> GetDataAsync(int id)
+    private async Task<string> GetDataAsyncCore(int id)
     {
         await Task.Delay(100);
         return $"Data for {id}";
     }
+
+    // The Source Generator automatically creates public wrapper methods:
+    // - public int Add(int a, int b) - with automatic logging
+    // - public async Task<string> GetDataAsync(int id) - with automatic logging
 }
 ```
 
-**Important**: Classes using AOP logging must be declared as `partial`.
+**Important**:
+- Classes using AOP logging must be declared as `partial`.
+- Implement your business logic in `private` methods ending with `Core` suffix.
+- The Source Generator automatically creates public wrapper methods with logging.
 
 ### 3. Run and See the Logs
 
@@ -98,15 +106,19 @@ info: MyService[0]
 
 ## Usage Examples
 
+> **Note**: The examples below show the business logic implementation. In practice, you should implement your methods as `private *Core` methods (e.g., `AddCore`, `ProcessDataCore`), and the Source Generator will automatically create the corresponding public wrapper methods with logging enabled.
+
 ### Basic Method Logging
 
 ```csharp
 [LogClass]
 public partial class CalculatorService
 {
-    public int Add(int a, int b) => a + b;
+    private int AddCore(int a, int b) => a + b;
 
-    public int Multiply(int a, int b) => a * b;
+    private int MultiplyCore(int a, int b) => a * b;
+
+    // Source Generator creates: public int Add(int a, int b) and public int Multiply(int a, int b)
 }
 ```
 
