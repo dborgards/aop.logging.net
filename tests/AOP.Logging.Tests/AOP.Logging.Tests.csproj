@@ -29,7 +29,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AOP.Logging.Core\AOP.Logging.Core.csproj" />
+    <!-- Reference as Analyzer for source generation -->
     <ProjectReference Include="..\..\src\AOP.Logging.SourceGenerator\AOP.Logging.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- Additional reference for testing the generator directly -->
+    <ProjectReference Include="..\..\src\AOP.Logging.SourceGenerator\AOP.Logging.SourceGenerator.csproj" />
     <ProjectReference Include="..\..\src\AOP.Logging.DependencyInjection\AOP.Logging.DependencyInjection.csproj" />
   </ItemGroup>
 
