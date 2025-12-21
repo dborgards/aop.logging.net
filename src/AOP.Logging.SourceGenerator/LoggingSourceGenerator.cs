@@ -17,6 +17,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 {
     private const string LogClassAttribute = "AOP.Logging.Core.Attributes.LogClassAttribute";
     private const string LogMethodAttribute = "AOP.Logging.Core.Attributes.LogMethodAttribute";
+    private const string DefaultSensitiveDataMask = "***SENSITIVE***";
 
     /// <summary>
     /// Equality comparer for ClassDeclarationSyntax based on syntax tree and span.
@@ -223,7 +224,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     {
         // Remove "Core" suffix to get the public method name
         var coreMethodName = coreMethod.Name;
-        var methodName = coreMethodName.Substring(0, coreMethodName.Length - 4); // Remove "Core"
+        var methodName = coreMethodName[..^4]; // Remove "Core" suffix
 
         var returnType = coreMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var isAsync = coreMethod.IsAsync || returnType.Contains("System.Threading.Tasks.Task");
@@ -268,7 +269,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 {
                     var sensitiveAttr = param.GetAttributes()
                         .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
-                    var maskValue = GetStringProperty(sensitiveAttr, "MaskValue") ?? "***SENSITIVE***";
+                    var maskValue = GetSensitiveDataMaskValue(sensitiveAttr);
                     sb.AppendLine($"                    {{ \"{param.Name}\", \"{maskValue}\" }}{comma}");
                 }
                 else
@@ -425,11 +426,11 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         return defaultValue;
     }
 
-    private static string? GetStringProperty(AttributeData? attribute, string propertyName)
+    private static string GetSensitiveDataMaskValue(AttributeData? attribute)
     {
-        if (attribute == null) return null;
+        if (attribute == null) return DefaultSensitiveDataMask;
 
-        // Check constructor argument
+        // Check constructor argument (for SensitiveDataAttribute, the first arg is the mask value)
         if (attribute.ConstructorArguments.Length > 0)
         {
             var arg = attribute.ConstructorArguments[0];
@@ -439,9 +440,10 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             }
         }
 
+        // Check named argument
         var namedArg = attribute.NamedArguments
-            .FirstOrDefault(a => a.Key == propertyName);
+            .FirstOrDefault(a => a.Key == "MaskValue");
 
-        return namedArg.Value.Value as string;
+        return namedArg.Value.Value as string ?? DefaultSensitiveDataMask;
     }
 }
