@@ -37,13 +37,25 @@ public class DefaultMethodLogger : IMethodLogger
             var state = new Dictionary<string, object?>
             {
                 ["ClassName"] = className,
-                ["MethodName"] = methodName,
-                ["Parameters"] = FormatParameters(parameters)
+                ["MethodName"] = methodName
             };
 
+            // Only include Parameters in state if referenced in the message template
+            // This prevents unintended data leakage to log sinks that capture all state properties
+            var includeParametersInState = _options.EntryMessageFormat.Contains("{Parameters}");
+            if (includeParametersInState)
+            {
+                state["Parameters"] = FormatParameters(parameters);
+            }
+
+            // Only include individual parameters in state if they're referenced in the template
             foreach (var param in parameters)
             {
-                state[$"Param_{param.Key}"] = FormatValue(param.Value);
+                var paramPlaceholder = $"{{Param_{param.Key}}}";
+                if (_options.EntryMessageFormat.Contains(paramPlaceholder))
+                {
+                    state[$"Param_{param.Key}"] = FormatValue(param.Value);
+                }
             }
 
             _logger.Log(logLevel, 0, state, null, (s, _) =>
@@ -76,10 +88,21 @@ public class DefaultMethodLogger : IMethodLogger
             var state = new Dictionary<string, object?>
             {
                 ["ClassName"] = className,
-                ["MethodName"] = methodName,
-                ["ReturnValue"] = FormatValue(returnValue),
-                ["ExecutionTime"] = executionTimeMs
+                ["MethodName"] = methodName
             };
+
+            // Only include ReturnValue in state if referenced in the message template
+            // This prevents unintended data leakage to log sinks that capture all state properties
+            if (_options.ExitMessageFormat.Contains("{ReturnValue}"))
+            {
+                state["ReturnValue"] = FormatValue(returnValue);
+            }
+
+            // Only include ExecutionTime in state if referenced in the message template
+            if (_options.ExitMessageFormat.Contains("{ExecutionTime}"))
+            {
+                state["ExecutionTime"] = executionTimeMs;
+            }
 
             _logger.Log(logLevel, 0, state, null, (s, _) =>
                 _options.ExitMessageFormat
@@ -113,11 +136,25 @@ public class DefaultMethodLogger : IMethodLogger
             var state = new Dictionary<string, object?>
             {
                 ["ClassName"] = className,
-                ["MethodName"] = methodName,
-                ["ExceptionType"] = exception.GetType().Name,
-                ["ExceptionMessage"] = exception.Message,
-                ["ExecutionTime"] = executionTimeMs
+                ["MethodName"] = methodName
             };
+
+            // Only include exception details in state if referenced in the message template
+            // This prevents unintended data leakage to log sinks that capture all state properties
+            if (_options.ExceptionMessageFormat.Contains("{ExceptionType}"))
+            {
+                state["ExceptionType"] = exception.GetType().Name;
+            }
+
+            if (_options.ExceptionMessageFormat.Contains("{ExceptionMessage}"))
+            {
+                state["ExceptionMessage"] = exception.Message;
+            }
+
+            if (_options.ExceptionMessageFormat.Contains("{ExecutionTime}"))
+            {
+                state["ExecutionTime"] = executionTimeMs;
+            }
 
             _logger.Log(logLevel, 0, state, exception, (s, _) =>
                 _options.ExceptionMessageFormat
@@ -170,15 +207,19 @@ public class DefaultMethodLogger : IMethodLogger
             return $"\"{stringValue}\"";
         }
 
-        // Handle collections
+        // Handle collections - use deferred enumeration to prevent DoS from infinite/large enumerables
         if (value is System.Collections.IEnumerable enumerable and not string)
         {
-            var items = enumerable.Cast<object>().ToList();
-            if (items.Count > _options.MaxCollectionSize)
+            // Use Take to limit enumeration without materializing the entire collection
+            var limitedItems = enumerable.Cast<object>().Take(_options.MaxCollectionSize + 1).ToList();
+
+            if (limitedItems.Count > _options.MaxCollectionSize)
             {
-                return $"[Collection of {items.Count} items]";
+                // Collection is larger than the limit, show truncated message
+                return $"[Collection with {_options.MaxCollectionSize}+ items (showing first {_options.MaxCollectionSize}): {string.Join(", ", limitedItems.Take(_options.MaxCollectionSize).Select(FormatValue))}]";
             }
-            return $"[{string.Join(", ", items.Select(FormatValue))}]";
+
+            return $"[{string.Join(", ", limitedItems.Select(FormatValue))}]";
         }
 
         // Handle primitives and other types

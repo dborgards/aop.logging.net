@@ -123,4 +123,177 @@ public class DefaultMethodLoggerTests
             Arg.Is<Exception>(ex => ex == exception),
             Arg.Any<Func<object, Exception?, string>>());
     }
+
+    [Fact]
+    public void LogEntry_WithStructuredLogging_OnlyIncludesParametersInStateWhenReferencedInTemplate()
+    {
+        // Arrange - Security fix: prevent unintended data leakage
+        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
+        _options.UseStructuredLogging = true;
+        _options.EntryMessageFormat = "Entering {ClassName}.{MethodName}"; // Does NOT include {Parameters}
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["password"] = "secret123",
+            ["username"] = "testuser"
+        };
+
+        Dictionary<string, object?>? capturedState = null;
+        _mockLogger.Log(
+            Arg.Any<LogLevel>(),
+            Arg.Any<EventId>(),
+            Arg.Do<object>(state => capturedState = state as Dictionary<string, object?>),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+
+        // Act
+        _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);
+
+        // Assert
+        capturedState.Should().NotBeNull();
+        capturedState!.Should().ContainKey("ClassName");
+        capturedState.Should().ContainKey("MethodName");
+        capturedState.Should().NotContainKey("Parameters"); // Security: should NOT leak parameters
+        capturedState.Should().NotContainKey("Param_password"); // Security: should NOT leak individual params
+        capturedState.Should().NotContainKey("Param_username");
+    }
+
+    [Fact]
+    public void LogEntry_WithStructuredLogging_IncludesParametersInStateWhenReferencedInTemplate()
+    {
+        // Arrange
+        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
+        _options.UseStructuredLogging = true;
+        _options.EntryMessageFormat = "Entering {ClassName}.{MethodName} with {Parameters}"; // DOES include {Parameters}
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["param1"] = "value1"
+        };
+
+        Dictionary<string, object?>? capturedState = null;
+        _mockLogger.Log(
+            Arg.Any<LogLevel>(),
+            Arg.Any<EventId>(),
+            Arg.Do<object>(state => capturedState = state as Dictionary<string, object?>),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+
+        // Act
+        _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);
+
+        // Assert
+        capturedState.Should().NotBeNull();
+        capturedState!.Should().ContainKey("Parameters"); // Should include when referenced
+    }
+
+    [Fact]
+    public void LogExit_WithStructuredLogging_OnlyIncludesReturnValueInStateWhenReferencedInTemplate()
+    {
+        // Arrange - Security fix: prevent unintended data leakage
+        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
+        _options.UseStructuredLogging = true;
+        _options.ExitMessageFormat = "Exiting {ClassName}.{MethodName}"; // Does NOT include {ReturnValue}
+
+        var sensitiveReturnValue = "credit-card-number-1234-5678-9012-3456";
+
+        Dictionary<string, object?>? capturedState = null;
+        _mockLogger.Log(
+            Arg.Any<LogLevel>(),
+            Arg.Any<EventId>(),
+            Arg.Do<object>(state => capturedState = state as Dictionary<string, object?>),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+
+        // Act
+        _methodLogger.LogExit("MyClass", "MyMethod", sensitiveReturnValue, 100L, LogLevel.Information);
+
+        // Assert
+        capturedState.Should().NotBeNull();
+        capturedState!.Should().ContainKey("ClassName");
+        capturedState.Should().ContainKey("MethodName");
+        capturedState.Should().NotContainKey("ReturnValue"); // Security: should NOT leak return value
+        capturedState.Should().NotContainKey("ExecutionTime"); // Should not include when not referenced
+    }
+
+    [Fact]
+    public void LogExit_WithStructuredLogging_IncludesReturnValueInStateWhenReferencedInTemplate()
+    {
+        // Arrange
+        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
+        _options.UseStructuredLogging = true;
+        _options.ExitMessageFormat = "Exiting {ClassName}.{MethodName} with result {ReturnValue}"; // DOES include {ReturnValue}
+
+        Dictionary<string, object?>? capturedState = null;
+        _mockLogger.Log(
+            Arg.Any<LogLevel>(),
+            Arg.Any<EventId>(),
+            Arg.Do<object>(state => capturedState = state as Dictionary<string, object?>),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+
+        // Act
+        _methodLogger.LogExit("MyClass", "MyMethod", "result", 100L, LogLevel.Information);
+
+        // Assert
+        capturedState.Should().NotBeNull();
+        capturedState!.Should().ContainKey("ReturnValue"); // Should include when referenced
+    }
+
+    [Fact]
+    public void FormatValue_WithLargeEnumerable_DoesNotEnumerateEntireCollection()
+    {
+        // Arrange - Security fix: prevent DoS from unbounded enumeration
+        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
+        _options.MaxCollectionSize = 10;
+
+        var enumerationCount = 0;
+        IEnumerable<int> InfiniteEnumerable()
+        {
+            while (true)
+            {
+                enumerationCount++;
+                yield return enumerationCount;
+            }
+        }
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["data"] = InfiniteEnumerable()
+        };
+
+        // Act
+        _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);
+
+        // Assert - Should only enumerate up to MaxCollectionSize + 1 (to check if it exceeds)
+        enumerationCount.Should().BeLessOrEqualTo(_options.MaxCollectionSize + 1);
+    }
+
+    [Fact]
+    public void FormatValue_WithSmallEnumerable_EnumeratesFullCollection()
+    {
+        // Arrange
+        _mockLogger.IsEnabled(LogLevel.Information).Returns(true);
+        _options.MaxCollectionSize = 10;
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["data"] = new[] { 1, 2, 3 }
+        };
+
+        string? loggedMessage = null;
+        _mockLogger.Log(
+            Arg.Any<LogLevel>(),
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception>(),
+            Arg.Do<Func<object, Exception?, string>>(formatter =>
+                loggedMessage = formatter(new object(), null)));
+
+        // Act
+        _methodLogger.LogEntry("MyClass", "MyMethod", parameters, LogLevel.Information);
+
+        // Assert
+        loggedMessage.Should().Contain("[1, 2, 3]");
+    }
 }
