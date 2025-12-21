@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 namespace AOP.Logging.Core.Configuration;
 
@@ -7,6 +9,9 @@ namespace AOP.Logging.Core.Configuration;
 /// </summary>
 public class AopLoggingOptions
 {
+    // Cache for compiled regex patterns to avoid rebuilding on every call
+    private static readonly ConcurrentDictionary<string, Regex> _regexCache = new();
+
     /// <summary>
     /// Gets or sets the default log level for method entry/exit.
     /// </summary>
@@ -149,7 +154,13 @@ public class AopLoggingOptions
             return value.Equals(pattern, StringComparison.OrdinalIgnoreCase);
         }
 
-        var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$";
-        return System.Text.RegularExpressions.Regex.IsMatch(value, regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Use cached compiled regex for better performance
+        var regex = _regexCache.GetOrAdd(pattern, p =>
+        {
+            var regexPattern = "^" + Regex.Escape(p).Replace("\\*", ".*") + "$";
+            return new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        });
+
+        return regex.IsMatch(value);
     }
 }
