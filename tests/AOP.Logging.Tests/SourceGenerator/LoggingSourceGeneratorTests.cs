@@ -282,6 +282,283 @@ namespace TestNamespace
         generatedSources.Should().NotContain(s => s.HintName == "BadService_Logging.g.cs");
     }
 
+    /// <summary>
+    /// Test that SensitiveData with simple mask value generates correct escaped literal.
+    /// </summary>
+    [Fact]
+    public void SensitiveDataWithSimpleMaskValue_GeneratesCorrectEscapedLiteral()
+    {
+        var source = @"
+using AOP.Logging.Core.Attributes;
+
+namespace TestNamespace
+{
+    [LogClass]
+    public partial class MyService
+    {
+        public void ProcessDataCore([SensitiveData(""***"")] string password)
+        {
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should contain properly escaped mask value
+        generatedCode.Should().Contain("\"***\"");
+        generatedCode.Should().Contain("{ \"password\", \"***\" }");
+    }
+
+    /// <summary>
+    /// Test that SensitiveData with quotes in mask value generates correct escaped literal.
+    /// </summary>
+    [Fact]
+    public void SensitiveDataWithQuotesInMaskValue_GeneratesCorrectEscapedLiteral()
+    {
+        var source = @"
+using AOP.Logging.Core.Attributes;
+
+namespace TestNamespace
+{
+    [LogClass]
+    public partial class MyService
+    {
+        public void ProcessDataCore([SensitiveData(""foo\""bar"")] string data)
+        {
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should contain properly escaped quotes
+        generatedCode.Should().Contain("\"foo\\\"bar\"");
+
+        // Verify the generated code compiles
+        VerifyGeneratedCodeCompiles(generatedCode, "MyService");
+    }
+
+    /// <summary>
+    /// Test that SensitiveData with newline in mask value generates correct escaped literal.
+    /// </summary>
+    [Fact]
+    public void SensitiveDataWithNewlineInMaskValue_GeneratesCorrectEscapedLiteral()
+    {
+        var source = @"
+using AOP.Logging.Core.Attributes;
+
+namespace TestNamespace
+{
+    [LogClass]
+    public partial class MyService
+    {
+        public void ProcessDataCore([SensitiveData(""line1\nline2"")] string data)
+        {
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should contain properly escaped newline
+        generatedCode.Should().Contain("\"line1\\nline2\"");
+
+        // Verify the generated code compiles
+        VerifyGeneratedCodeCompiles(generatedCode, "MyService");
+    }
+
+    /// <summary>
+    /// Test that SensitiveData with backslash in mask value generates correct escaped literal.
+    /// </summary>
+    [Fact]
+    public void SensitiveDataWithBackslashInMaskValue_GeneratesCorrectEscapedLiteral()
+    {
+        var source = @"
+using AOP.Logging.Core.Attributes;
+
+namespace TestNamespace
+{
+    [LogClass]
+    public partial class MyService
+    {
+        public void ProcessDataCore([SensitiveData(""path\\to\\file"")] string path)
+        {
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should contain properly escaped backslashes
+        generatedCode.Should().Contain("\"path\\\\to\\\\file\"");
+
+        // Verify the generated code compiles
+        VerifyGeneratedCodeCompiles(generatedCode, "MyService");
+    }
+
+    /// <summary>
+    /// Test that a custom SensitiveDataAttribute in a different namespace is NOT recognized.
+    /// This ensures we use fully qualified name matching.
+    /// </summary>
+    [Fact]
+    public void CustomSensitiveDataAttributeInDifferentNamespace_IsNotRecognized()
+    {
+        var source = @"
+using System;
+using AOP.Logging.Core.Attributes;
+
+namespace MyCustomNamespace
+{
+    // Custom attribute with same name but different namespace
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public class SensitiveDataAttribute : Attribute
+    {
+        public SensitiveDataAttribute(string maskValue) { }
+    }
+}
+
+namespace TestNamespace
+{
+    using MyCustomNamespace;
+
+    [LogClass]
+    public partial class MyService
+    {
+        // This uses the custom attribute, NOT AOP.Logging.Core.Attributes.SensitiveDataAttribute
+        public void ProcessDataCore([SensitiveData(""CUSTOM_MASK"")] string data)
+        {
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should NOT mask the parameter (since it's not our SensitiveDataAttribute)
+        // The parameter should be logged normally, not with CUSTOM_MASK
+        generatedCode.Should().Contain("{ \"data\", data }");
+        generatedCode.Should().NotContain("CUSTOM_MASK");
+    }
+
+    /// <summary>
+    /// Test that the correct SensitiveDataAttribute from AOP.Logging.Core.Attributes IS recognized.
+    /// </summary>
+    [Fact]
+    public void CorrectSensitiveDataAttributeFromAOPLoggingNamespace_IsRecognized()
+    {
+        var source = @"
+using AOP.Logging.Core.Attributes;
+
+namespace TestNamespace
+{
+    [LogClass]
+    public partial class MyService
+    {
+        public void ProcessDataCore([SensitiveData(""CORRECT_MASK"")] string password)
+        {
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should mask the parameter with our mask value
+        generatedCode.Should().Contain("{ \"password\", \"CORRECT_MASK\" }");
+    }
+
+    /// <summary>
+    /// Test that SensitiveData on return value generates correct escaped literal.
+    /// </summary>
+    [Fact]
+    public void SensitiveDataOnReturnValue_GeneratesCorrectEscapedLiteral()
+    {
+        var source = @"
+using AOP.Logging.Core.Attributes;
+
+namespace TestNamespace
+{
+    [LogClass]
+    public partial class MyService
+    {
+        [return: SensitiveData(""<redacted>\""value\"""")]
+        public string GetSecretCore()
+        {
+            return ""secret"";
+        }
+    }
+}";
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        // Should not have any errors
+        diagnostics.Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code
+        generatedSources.Should().ContainSingle(s => s.HintName == "MyService_Logging.g.cs");
+
+        var generatedSource = generatedSources.First(s => s.HintName == "MyService_Logging.g.cs");
+        var generatedCode = generatedSource.SourceText.ToString();
+
+        // Should contain properly escaped return value mask
+        generatedCode.Should().Contain("\"<redacted>\\\"value\\\"\"");
+
+        // Verify the generated code compiles
+        VerifyGeneratedCodeCompiles(generatedCode, "MyService");
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<GeneratedSourceResult> GeneratedSources) RunGenerator(string source)
     {
         // Create the compilation with the source code
@@ -314,5 +591,34 @@ namespace TestNamespace
         return (diagnostics, runResult.GeneratedTrees.Length > 0
             ? runResult.Results[0].GeneratedSources
             : ImmutableArray<GeneratedSourceResult>.Empty);
+    }
+
+    /// <summary>
+    /// Verifies that the generated code compiles without errors.
+    /// </summary>
+    private static void VerifyGeneratedCodeCompiles(string generatedCode, string className)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(generatedCode);
+
+        var references = new MetadataReference[]
+        {
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Core.Attributes.LogClassAttribute).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Core.Interfaces.IMethodLogger).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(System.Runtime.CompilerServices.IsExternalInit).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(System.Diagnostics.Stopwatch).Assembly.Location),
+        };
+
+        var compilation = CSharpCompilation.Create(
+            assemblyName: $"{className}GeneratedTest",
+            syntaxTrees: new[] { syntaxTree },
+            references: references,
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var diagnostics = compilation.GetDiagnostics();
+        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+
+        errors.Should().BeEmpty($"Generated code for {className} should compile without errors. Errors: {string.Join(", ", errors.Select(e => e.GetMessage()))}");
     }
 }

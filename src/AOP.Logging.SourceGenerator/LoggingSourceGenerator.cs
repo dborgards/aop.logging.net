@@ -17,6 +17,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 {
     private const string LogClassAttribute = "AOP.Logging.Core.Attributes.LogClassAttribute";
     private const string LogMethodAttribute = "AOP.Logging.Core.Attributes.LogMethodAttribute";
+    private const string SensitiveDataAttribute = "AOP.Logging.Core.Attributes.SensitiveDataAttribute";
     private const string DefaultSensitiveDataMask = "***SENSITIVE***";
     private const int CoreSuffixLength = 4; // Length of "Core" suffix
 
@@ -317,15 +318,15 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 
                 // Check for SensitiveData attribute (single enumeration)
                 var sensitiveAttr = param.GetAttributes()
-                    .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
+                    .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == SensitiveDataAttribute);
                 var isSensitive = sensitiveAttr != null;
 
                 var comma = isLast ? "" : ",";
 
                 if (isSensitive)
                 {
-                    var maskValue = GetSensitiveDataMaskValue(sensitiveAttr);
-                    sb.AppendLine($"                    {{ \"{param.Name}\", \"{maskValue}\" }}{comma}");
+                    var maskValueLiteral = GetSensitiveDataMaskValueLiteral(sensitiveAttr);
+                    sb.AppendLine($"                    {{ \"{param.Name}\", {maskValueLiteral} }}{comma}");
                 }
                 else
                 {
@@ -389,7 +390,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
 
             // Check if return value has SensitiveData attribute
             var returnValueSensitiveAttr = method.GetReturnTypeAttributes()
-                .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == SensitiveDataAttribute);
             var isReturnValueSensitive = returnValueSensitiveAttr != null;
 
             string returnValueExpr;
@@ -399,8 +400,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             }
             else if (isReturnValueSensitive)
             {
-                var maskValue = GetSensitiveDataMaskValue(returnValueSensitiveAttr);
-                returnValueExpr = $"\"{maskValue}\"";
+                returnValueExpr = GetSensitiveDataMaskValueLiteral(returnValueSensitiveAttr);
             }
             else
             {
@@ -501,24 +501,44 @@ public class LoggingSourceGenerator : IIncrementalGenerator
         return defaultValue;
     }
 
-    private static string GetSensitiveDataMaskValue(AttributeData? attribute)
+    /// <summary>
+    /// Gets the mask value for sensitive data as a properly escaped C# string literal.
+    /// Returns a complete string literal including quotes, e.g., "\"***SENSITIVE***\""
+    /// </summary>
+    private static string GetSensitiveDataMaskValueLiteral(AttributeData? attribute)
     {
-        if (attribute == null) return DefaultSensitiveDataMask;
+        string maskValue;
 
-        // Check constructor argument (for SensitiveDataAttribute, the first arg is the mask value)
-        if (attribute.ConstructorArguments.Length > 0)
+        if (attribute == null)
         {
-            var arg = attribute.ConstructorArguments[0];
-            if (arg.Value is string strValue)
+            maskValue = DefaultSensitiveDataMask;
+        }
+        else
+        {
+            // Check constructor argument (for SensitiveDataAttribute, the first arg is the mask value)
+            if (attribute.ConstructorArguments.Length > 0)
             {
-                return strValue;
+                var arg = attribute.ConstructorArguments[0];
+                if (arg.Value is string strValue)
+                {
+                    maskValue = strValue;
+                }
+                else
+                {
+                    maskValue = DefaultSensitiveDataMask;
+                }
+            }
+            else
+            {
+                // Check named argument
+                var namedArg = attribute.NamedArguments
+                    .FirstOrDefault(a => a.Key == "MaskValue");
+                maskValue = namedArg.Value.Value as string ?? DefaultSensitiveDataMask;
             }
         }
 
-        // Check named argument
-        var namedArg = attribute.NamedArguments
-            .FirstOrDefault(a => a.Key == "MaskValue");
-
-        return namedArg.Value.Value as string ?? DefaultSensitiveDataMask;
+        // Use SymbolDisplay.FormatLiteral to properly escape the string
+        // This handles all special characters: quotes, backslashes, newlines, etc.
+        return SymbolDisplay.FormatLiteral(maskValue, quote: true);
     }
 }
