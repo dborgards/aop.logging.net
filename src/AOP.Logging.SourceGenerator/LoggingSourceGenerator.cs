@@ -356,7 +356,7 @@ public class LoggingSourceGenerator : IIncrementalGenerator
             var executionTime = logExecutionTime ? "__stopwatch.ElapsedMilliseconds" : "0";
 
             // Check if return value has SensitiveData attribute
-            var returnValueSensitiveAttr = coreMethod.GetReturnTypeAttributes()
+            var returnValueSensitiveAttr = method.GetReturnTypeAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.Name == "SensitiveDataAttribute");
             var isReturnValueSensitive = returnValueSensitiveAttr != null;
 
