@@ -20,6 +20,16 @@ public class LoggingSourceGenerator : IIncrementalGenerator
     private const string DefaultSensitiveDataMask = "***SENSITIVE***";
     private const int CoreSuffixLength = 4; // Length of "Core" suffix
 
+    // Diagnostic descriptors
+    private static readonly DiagnosticDescriptor ClassMustBePartialRule = new DiagnosticDescriptor(
+        id: "AOPLOG001",
+        title: "Class must be declared as partial",
+        messageFormat: "Class '{0}' must be declared as partial to enable AOP logging code generation. Add the 'partial' keyword to the class declaration.",
+        category: "AOP.Logging.SourceGenerator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Classes that use [LogClass] or have methods with [LogMethod] must be declared as partial to allow the source generator to create logging wrappers.");
+
     /// <summary>
     /// Equality comparer for ClassDeclarationSyntax based on syntax tree and span.
     /// Used for deduplication when a class has both LogClass and LogMethod attributes.
@@ -112,9 +122,31 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 continue;
             }
 
+            // Validate that the class is declared as partial
+            if (!IsPartialClass(classDeclaration))
+            {
+                // Report diagnostic error
+                var diagnostic = Diagnostic.Create(
+                    ClassMustBePartialRule,
+                    classDeclaration.Identifier.GetLocation(),
+                    classSymbol.Name);
+                context.ReportDiagnostic(diagnostic);
+
+                // Skip code generation for this class
+                continue;
+            }
+
             var source = GenerateLoggingCode(classSymbol, classDeclaration);
             context.AddSource($"{classSymbol.Name}_Logging.g.cs", SourceText.From(source, Encoding.UTF8));
         }
+    }
+
+    /// <summary>
+    /// Checks if a class declaration has the 'partial' modifier.
+    /// </summary>
+    private static bool IsPartialClass(ClassDeclarationSyntax classDeclaration)
+    {
+        return classDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
     }
 
     private static string GenerateLoggingCode(INamedTypeSymbol classSymbol, ClassDeclarationSyntax classDeclaration)

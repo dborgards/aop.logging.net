@@ -23,11 +23,25 @@
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
     <PackageReference Include="NSubstitute" Version="5.1.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing.XUnit" Version="1.1.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AOP.Logging.Core\AOP.Logging.Core.csproj" />
+
+    <!--
+      Dual reference pattern for SourceGenerator:
+      1. First reference (Analyzer): Used at compile-time for source generation in test code
+         - OutputItemType="Analyzer": Treats project as a Roslyn analyzer
+         - ReferenceOutputAssembly="false": Prevents assembly from being referenced directly
+      2. Second reference (Normal): Enables direct instantiation in unit tests
+         - Allows tests to create LoggingSourceGenerator instances
+         - Required for testing the generator logic itself
+    -->
     <ProjectReference Include="..\..\src\AOP.Logging.SourceGenerator\AOP.Logging.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\AOP.Logging.SourceGenerator\AOP.Logging.SourceGenerator.csproj" />
+
     <ProjectReference Include="..\..\src\AOP.Logging.DependencyInjection\AOP.Logging.DependencyInjection.csproj" />
   </ItemGroup>
 
