@@ -49,8 +49,9 @@ public partial class OrderService : IOrderService
     /// Wrapper will be "GetOrderStatusLogged".
     /// </summary>
     [LogMethod(LogLevel.Debug)]
-    private string GetOrderStatus(string orderId)
+    private async Task<string> GetOrderStatus(string orderId)
     {
+        await Task.Delay(10); // Simulate async lookup
         return "Pending";
     }
 }

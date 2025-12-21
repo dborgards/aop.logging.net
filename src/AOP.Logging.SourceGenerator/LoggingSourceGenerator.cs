@@ -199,8 +199,8 @@ public class LoggingSourceGenerator : IIncrementalGenerator
                 ? originalMethodName.Substring(0, originalMethodName.Length - CoreSuffixLength)
                 : originalMethodName + "Logged";
 
-            // Skip if wrapper name would collide with existing method (except the original method itself)
-            if (existingMethodNames.Contains(wrapperMethodName) && wrapperMethodName != originalMethodName)
+            // Skip if wrapper name would collide with existing method
+            if (existingMethodNames.Contains(wrapperMethodName))
             {
                 // Note: In a real implementation, we would report a diagnostic here
                 // For now, we simply skip generating the wrapper

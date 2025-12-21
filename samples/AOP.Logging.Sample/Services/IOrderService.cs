@@ -8,5 +8,5 @@ public interface IOrderService
     Task<string> CreateOrderLogged(string customerId, decimal amount);
     Task<bool> ProcessPaymentLogged(string orderId, decimal amount);
     void CancelOrderLogged(string orderId);
-    string GetOrderStatusLogged(string orderId);
+    Task<string> GetOrderStatusLogged(string orderId);
 }
