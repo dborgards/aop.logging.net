@@ -267,7 +267,7 @@ public class DefaultMethodLoggerTests
 
         // Assert - Should only enumerate up to MaxCollectionSize + 1 (to check if it exceeds)
         // This is the critical security fix: bounded enumeration prevents DoS
-        enumerationCount.Should().BeLessOrEqualTo(_options.MaxCollectionSize + 1);
+        enumerationCount.Should().BeLessThanOrEqualTo(_options.MaxCollectionSize + 1);
 
         // Verify the log method was called
         _mockLogger.Received(1).Log(
