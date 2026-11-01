@@ -111,10 +111,8 @@ git push origin feature/my-feature
 # semantic-release workflow automatically:
 # 1. Analyzes commits
 # 2. Calculates new version
-# 3. Updates CHANGELOG.md
-# 4. Updates .csproj files
-# 5. Creates pre-release on GitHub
-# 6. Tags the release
+# 3. Creates pre-release on GitHub with the release notes
+# 4. Tags the release
 ```
 
 ### 4. Release to Main
@@ -130,14 +128,11 @@ git push origin main
 # semantic-release workflow automatically:
 # 1. Analyzes commits since last release
 # 2. Calculates new version
-# 3. Updates CHANGELOG.md
-# 4. Updates all .csproj files
-# 5. Builds and tests
-# 6. Creates NuGet packages
-# 7. Publishes to NuGet.org
-# 8. Creates GitHub Release
-# 9. Commits version updates
-# 10. Tags the release
+# 3. Builds and tests
+# 4. Creates NuGet packages with the new version
+# 5. Publishes to NuGet.org
+# 6. Creates GitHub Release with the release notes
+# 7. Tags the release
 ```
 
 ## Version Calculation Examples
@@ -204,9 +199,7 @@ The project uses `.releaserc.json` for semantic-release configuration:
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    "@semantic-release/changelog",
     "@semantic-release/exec",
-    "@semantic-release/git",
     "@semantic-release/github"
   ]
 }
@@ -216,10 +209,10 @@ The project uses `.releaserc.json` for semantic-release configuration:
 
 1. **commit-analyzer**: Analyzes commits and determines version bump
 2. **release-notes-generator**: Generates release notes from commits
-3. **changelog**: Updates CHANGELOG.md
-4. **exec**: Runs custom commands (update .csproj, pack, publish to NuGet)
-5. **git**: Commits changed files back to repo
-6. **github**: Creates GitHub release and uploads assets
+3. **exec**: Sets the version in the .csproj files of the build workspace, packs and publishes to NuGet
+4. **github**: Creates GitHub release and uploads assets
+
+Nothing is committed back to the repository, so the `<Version>` values in the .csproj files are not kept up to date. Release notes live in the GitHub Releases; CHANGELOG.md is no longer updated.
 
 ## Checking Next Version Locally
 
@@ -305,7 +298,7 @@ git push origin v2.0.0
 ✅ **Fully automated** - No manual version updates needed
 ✅ **Consistent** - Version always matches commits
 ✅ **Traceable** - Clear link between version and changes
-✅ **Time-saving** - No manual CHANGELOG updates
+✅ **Time-saving** - Release notes are generated automatically
 ✅ **Error-proof** - No human mistakes in versioning
 ✅ **Standardized** - Industry-standard tool and workflow
 
@@ -314,14 +307,12 @@ git push origin v2.0.0
 1. Analyzes commits since last release
 2. Determines version bump type (major/minor/patch)
 3. Generates new version number
-4. Updates CHANGELOG.md with categorized changes
-5. Updates all .csproj files with new version
-6. Builds and tests the project
-7. Creates and uploads NuGet packages
-8. Publishes to NuGet.org
-9. Creates GitHub Release with release notes
-10. Commits version changes back to repo
-11. Tags the release
+4. Sets the new version in the .csproj files of the build workspace
+5. Builds and tests the project
+6. Creates and uploads NuGet packages
+7. Publishes to NuGet.org
+8. Creates GitHub Release with release notes
+9. Tags the release
 
 All of this happens **automatically** when you push to `main` or `develop`.
 
