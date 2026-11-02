@@ -1,0 +1,8 @@
+{
+  "name": "@semantic-release/npm",
+  "private": true,
+  "description": "Placeholder for @semantic-release/npm. AOP.Logging never publishes to npm, so the real plugin and the npm CLI it bundles are not installed.",
+  "type": "module",
+  "main": "index.js",
+  "exports": "./index.js"
+}
