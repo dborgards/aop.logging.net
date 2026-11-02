@@ -1,5 +1,5 @@
 using AOP.Logging.Core.Attributes;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
