@@ -1,5 +1,5 @@
 using AOP.Logging.Core.Configuration;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace AOP.Logging.Tests.Configuration;

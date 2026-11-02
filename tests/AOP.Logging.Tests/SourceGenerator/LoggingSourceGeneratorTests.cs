@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
-using FluentAssertions;
+using AwesomeAssertions;
 using System.Linq;
 using System.Collections.Immutable;
 

@@ -21,7 +21,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <!--
+      AwesomeAssertions, not FluentAssertions: from 8.0.0 onwards FluentAssertions ships under the
+      Xceed commercial license, which does not fit this MIT-licensed project. AwesomeAssertions is
+      a community fork of FluentAssertions, published under Apache-2.0 (its nuspec declares that
+      expression). Do not add FluentAssertions back.
+    -->
+    <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
     <PackageReference Include="NSubstitute" Version="6.2.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.14" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />

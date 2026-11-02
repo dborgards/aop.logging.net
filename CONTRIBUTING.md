@@ -109,7 +109,7 @@ aop.logging.net/
 - **Core Library**: Contains attributes, interfaces, and configuration
 - **Source Generator**: Roslyn-based incremental generator for compile-time code generation
 - **DI Extensions**: Service collection extensions for dependency injection
-- **Tests**: xUnit tests with FluentAssertions and NSubstitute
+- **Tests**: xUnit tests with AwesomeAssertions and NSubstitute
 
 ## Development Workflow
 
